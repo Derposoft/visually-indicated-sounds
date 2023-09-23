@@ -1,4 +1,7 @@
-youtube-dl
 numpy
-tqdm
+opencv-python
 pytube
+torch
+torchvision
+torchaudio
+tqdm
