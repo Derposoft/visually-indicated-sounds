@@ -21,7 +21,8 @@ def download_video(video_id: str, dir: str):
 
 def download_data(train_dir: str, test_dir: str, num_train: int = 5, num_test: int = 2):
     max_videos = num_train + num_test
-    with open("vig_dl.lst") as fin:
+    video_id_file = os.path.join(os.path.dirname(__file__), "vig_dl.lst")
+    with open(video_id_file) as fin:
         lines = fin.readlines()
         for video_idx, line in tqdm(enumerate(lines[:max_videos])):
             video_id = line.strip().split(",")[0]
