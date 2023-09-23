@@ -49,7 +49,7 @@ class VideoDataset(Dataset):
         (
             self.annotations,
             self.class_map,
-        ) = load_annotations_and_classmap()  # TODO use classmap
+        ) = load_annotations_and_classmap()
 
     def __len__(self):
         return len(self.video_files)
@@ -82,7 +82,7 @@ def load_data(batch_size=32) -> tuple[DataLoader, DataLoader]:
 
 def download_data_if_not_downloaded(
     data_dir=os.path.join(os.path.dirname(__file__), "./vig"),
-    n_train_videos=10,
+    n_train_videos=5,
     n_test_videos=2,
 ):
     data_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")]
