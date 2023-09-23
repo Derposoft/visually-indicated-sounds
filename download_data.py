@@ -2,11 +2,17 @@ import os, sys
 import numpy as np
 from tqdm import tqdm
 from pytube import YouTube
+import argparse
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--num_videos", default=10, type=int)
+config = parser.parse_args()
+max_videos = config.num_videos
 
 
 root_url = "https://www.youtube.com/watch?v="
 num_all_video = 16384
-max_videos = 10
 err_ids = []
 completed_ids = []
 download_folder = os.path.join(__file__, "./data/")
