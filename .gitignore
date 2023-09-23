@@ -1,1 +1,4 @@
 venv/
+data/*.mp4
+data/audioset
+*.npy

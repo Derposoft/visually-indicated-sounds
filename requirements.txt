@@ -1,2 +1,4 @@
 youtube-dl
 numpy
+tqdm
+pytube
