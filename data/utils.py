@@ -75,13 +75,15 @@ class VideoDataset(Dataset):
 
 
 def load_data(batch_size=32) -> tuple[DataLoader, DataLoader]:
-    train_data = DataLoader(VideoDataset(), batch_size=batch_size)
-    test_data = DataLoader(VideoDataset(), batch_size=batch_size)
+    train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
+    test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
+    train_data = DataLoader(VideoDataset(train_dir), batch_size=batch_size)
+    test_data = DataLoader(VideoDataset(test_dir), batch_size=batch_size)
     return train_data, test_data
 
 
 def download_data_if_not_downloaded(
-    data_dir=os.path.join(os.path.dirname(__file__), "./vig"),
+    data_dir=os.path.join(os.path.dirname(__file__), "./vig_train"),
     n_train_videos=5,
     n_test_videos=2,
 ):
