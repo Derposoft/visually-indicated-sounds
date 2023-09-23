@@ -1,5 +1,5 @@
 venv/
-data/vig/*.mp4
+data/vig*/*.mp4
 data/audioset
 *.npy
 __pycache__/

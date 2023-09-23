@@ -5,18 +5,15 @@ from pytube import YouTube
 import argparse
 
 root_url = "https://www.youtube.com/watch?v="
-num_all_video = 16384
-err_ids = []
-completed_ids = []
 
 
-def download_video(video_id: str, dir: str):
+def download_video(video_id: str, dirname: str):
     # URL of the YouTube video you want to download
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     yt = YouTube(video_url)
     filename = f"{video_id}.mp4"
     video_stream = yt.streams.get_lowest_resolution()
-    video_stream.download(output_path=dir, filename=filename)
+    video_stream.download(output_path=dirname, filename=filename)
 
 
 def download_data(train_dir: str, test_dir: str, num_train: int = 5, num_test: int = 2):
@@ -27,9 +24,8 @@ def download_data(train_dir: str, test_dir: str, num_train: int = 5, num_test: i
         for video_idx, line in tqdm(enumerate(lines[:max_videos])):
             video_id = line.strip().split(",")[0]
             download_dir = train_dir if video_idx < num_train else test_dir
-            print(download_dir)
             try:
-                download_video(video_id, train_dir, download_dir)
+                download_video(video_id, download_dir)
             except:
                 print(f"DL Failed, id={video_id}")
 
