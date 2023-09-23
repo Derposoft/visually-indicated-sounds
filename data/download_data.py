@@ -15,7 +15,7 @@ root_url = "https://www.youtube.com/watch?v="
 num_all_video = 16384
 err_ids = []
 completed_ids = []
-download_folder = os.path.join(__file__, "./data/")
+download_folder = os.path.join(__file__, "./")
 
 
 def download_video(video_id):
