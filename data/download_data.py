@@ -4,39 +4,42 @@ from tqdm import tqdm
 from pytube import YouTube
 import argparse
 
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--num_videos", default=10, type=int)
-config = parser.parse_args()
-max_videos = config.num_videos
-
-
 root_url = "https://www.youtube.com/watch?v="
 num_all_video = 16384
 err_ids = []
 completed_ids = []
-download_folder = os.path.join(__file__, "./")
 
 
-def download_video(video_id):
+def download_video(video_id: str, dir: str):
     # URL of the YouTube video you want to download
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     yt = YouTube(video_url)
-    video_stream = yt.streams.get_highest_resolution()
-    video_stream.download(output_path=download_folder)
+    filename = f"{video_id}.mp4"
+    video_stream = yt.streams.get_lowest_resolution()
+    video_stream.download(output_path=dir, filename=filename)
 
 
-with open("vig_dl.lst") as fin:
-    lines = fin.readlines()
-    for line_id, line in tqdm(enumerate(lines[:max_videos])):
-        print("Downloading")
-        video_id = line.strip().split(",")[0]
-        try:
-            download_video(video_id)
-            completed_ids.append(video_id)
-        except:
-            print("%d/%d: %s fail downloading" % (line_id, num_all_video, video_id))
-            err_ids.append(video_id)
+def download_data(train_dir: str, test_dir: str, num_train: int = 5, num_test: int = 2):
+    max_videos = num_train + num_test
+    with open("vig_dl.lst") as fin:
+        lines = fin.readlines()
+        for video_idx, line in tqdm(enumerate(lines[:max_videos])):
+            video_id = line.strip().split(",")[0]
+            download_dir = train_dir if video_idx < num_train else test_dir
+            print(download_dir)
+            try:
+                download_video(video_id, train_dir, download_dir)
+            except:
+                print(f"DL Failed, id={video_id}")
 
-err_ids = np.array(err_ids)
-completed_ids = np.array(completed_ids)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_train", default=5, type=int)
+    parser.add_argument("--n_test", default=2, type=int)
+    config = parser.parse_args()
+    n_train = config.n_train
+    n_test = config.n_test
+    train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
+    test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
+    download_data(train_dir, test_dir, n_train, n_test)
