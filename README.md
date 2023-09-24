@@ -2,4 +2,4 @@
 
 V Chadalapaka
 A Yegazarian
-E Kaligh
+E Khaligh
