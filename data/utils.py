@@ -1,13 +1,78 @@
 import pickle as pkl
-import os
 import cv2
 import torch
 from torch.utils.data import Dataset, DataLoader
 from functools import lru_cache
 
+import os, sys
+import numpy as np
+from tqdm import tqdm
+from pytube import YouTube
+import argparse
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+import shutil
 
-from data.download_data import download_data
+root_url = "https://www.youtube.com/watch?v="
 
+
+def download_video(video_id: str, dirname: str):
+    # URL of the YouTube video you want to download
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    yt = YouTube(video_url)
+    filename = f"{video_id}.mp4"
+    video_stream = yt.streams.get_lowest_resolution()
+    video_stream.download(output_path=dirname, filename=filename)
+    return filename
+
+def download_data(train_dir: str, test_dir: str, num_train: int = 5, num_test: int = 2):
+    max_videos = num_train + num_test
+    video_id_file = os.path.join(os.path.dirname(__file__), "vig_dl.lst")
+
+    annotations_dict, classmap_dict = load_annotations_and_classmap()
+
+    with open(video_id_file) as fin:
+        lines = fin.readlines()
+        for video_idx, line in tqdm(enumerate(lines[:max_videos])):
+            youtube_video_id, video_id = line.strip().split(",")
+            video_id = int(video_id)
+
+            download_dir = train_dir if video_idx < num_train else test_dir
+
+            try:
+                download_video_filename = download_video(youtube_video_id, download_dir)
+            except:
+                continue
+
+            download_video_saved_path = os.path.join(download_dir, download_video_filename)
+            clipped_video_saved_path = os.path.join(download_dir, "clipped_" + download_video_filename)
+
+            print()
+
+            if video_id in annotations_dict:
+                desired_annotation = annotations_dict[video_id]
+
+                start_time = int(desired_annotation['start_time'])
+                end_time = int(desired_annotation['end_time'])
+
+                print("start_time:", start_time)
+                print("end_time:", end_time)
+
+                ffmpeg_extract_subclip(download_video_saved_path, start_time, end_time, targetname=clipped_video_saved_path)
+
+                os.remove(download_video_saved_path)
+                shutil.move(clipped_video_saved_path, download_video_saved_path)
+
+
+def download_data_if_not_downloaded(
+    data_dir=os.path.join(os.path.dirname(__file__), "./vig_train"),
+    n_train_videos=5,
+    n_test_videos=2,
+):
+    data_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")]
+    if not data_files:
+        train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
+        test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
+        download_data(train_dir, test_dir, n_train_videos, n_test_videos)
 
 @lru_cache(maxsize=None)
 def load_video_ids():
@@ -82,17 +147,15 @@ def load_data(batch_size=32) -> tuple[DataLoader, DataLoader]:
     return train_data, test_data
 
 
-def download_data_if_not_downloaded(
-    data_dir=os.path.join(os.path.dirname(__file__), "./vig_train"),
-    n_train_videos=5,
-    n_test_videos=2,
-):
-    data_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")]
-    if not data_files:
-        train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
-        test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
-        download_data(train_dir, test_dir, n_train_videos, n_test_videos)
-
 
 if __name__ == "__main__":
     load_annotations_and_classmap()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_train", default=5, type=int)
+    parser.add_argument("--n_test", default=2, type=int)
+    config = parser.parse_args()
+    n_train = config.n_train
+    n_test = config.n_test
+    train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
+    test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
+    download_data(train_dir, test_dir, n_train, n_test)
