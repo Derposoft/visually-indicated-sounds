@@ -65,8 +65,8 @@ def download_data(train_dir: str, test_dir: str, num_train: int = 5, num_test: i
 
 def download_data_if_not_downloaded(
     data_dir=os.path.join(os.path.dirname(__file__), "./vig_train"),
-    n_train_videos=5,
-    n_test_videos=2,
+    n_train_videos=1000,
+    n_test_videos=200,
 ):
     data_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")]
     if not data_files:
@@ -151,8 +151,8 @@ def load_data(batch_size=32) -> tuple[DataLoader, DataLoader]:
 if __name__ == "__main__":
     load_annotations_and_classmap()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_train", default=5, type=int)
-    parser.add_argument("--n_test", default=2, type=int)
+    parser.add_argument("--n_train", default=1000, type=int)
+    parser.add_argument("--n_test", default=200, type=int)
     config = parser.parse_args()
     n_train = config.n_train
     n_test = config.n_test
