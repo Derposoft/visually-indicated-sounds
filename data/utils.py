@@ -192,31 +192,35 @@ def frame_normalizer(height=240, width=320, grayscale=True):
 
 
 def load_data(
-    batch_size=32, vid_height=240, vid_width=360, grayscale=True
+    batch_size=32, vid_height=240, vid_width=360, frame_skip=10, grayscale=True
 ) -> tuple[DataLoader, DataLoader]:
     train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
     test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
-    train_data = DataLoader(
-        VideoDataset(
-            train_dir,
-            transform=frame_normalizer(
-                height=vid_height, width=vid_width, grayscale=grayscale
-            ),
+    train_dataset = VideoDataset(
+        train_dir,
+        transform=frame_normalizer(
+            height=vid_height, width=vid_width, grayscale=grayscale
         ),
+        frame_skip=frame_skip,
+    )
+    test_dataset = VideoDataset(
+        test_dir,
+        transform=frame_normalizer(
+            height=vid_height, width=vid_width, grayscale=grayscale
+        ),
+        frame_skip=frame_skip,
+    )
+    train_dataloader = DataLoader(
+        train_dataset,
         batch_size=batch_size,
         collate_fn=PadSequence(),
     )
-    test_data = DataLoader(
-        VideoDataset(
-            test_dir,
-            transform=frame_normalizer(
-                height=vid_height, width=vid_width, grayscale=grayscale
-            ),
-        ),
+    test_dataloader = DataLoader(
+        test_dataset,
         batch_size=batch_size,
         collate_fn=PadSequence(),
     )
-    return train_data, test_data
+    return train_dataloader, test_dataloader
 
 
 if __name__ == "__main__":
