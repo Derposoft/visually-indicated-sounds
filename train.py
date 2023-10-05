@@ -9,7 +9,7 @@ from models.pocan import POCAN
 def train(model, train_dataloader, criterion, opt, num_epochs=10):
     for epoch in range(num_epochs):
         running_loss = 0.0
-        for inputs, labels in train_dataloader:
+        for inputs, seq_lens, labels in train_dataloader:
             opt.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
@@ -22,8 +22,36 @@ def train(model, train_dataloader, criterion, opt, num_epochs=10):
 
 
 if __name__ == "__main__":
-    download_data_if_not_downloaded()
-    train_dataloader, test_dataloader = load_data()
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model", choices=["pocan", "foleygan", "vig"], type=str, required=True
+    )
+    parser.add_argument("--n_train", default=1000, type=int)
+    parser.add_argument("--n_test", default=200, type=int)
+    parser.add_argument("--frame_skip", default=10, type=int)
+    parser.add_argument("--vid_height", default=240, type=int)
+    parser.add_argument("--vid_width", default=360, type=int)
+    parser.add_argument("--grayscale", default=True, type=bool)
+    config = parser.parse_args()
+    model = config.model
+    n_train = config.n_train
+    n_test = config.n_test
+    frame_skip = config.frame_skip
+    vid_height = config.vid_height
+    vid_width = config.vid_width
+    grayscale = config.grayscale
+
+    # Download data and get dataloaders
+    download_data_if_not_downloaded(n_train_videos=n_train, n_test_videos=n_test)
+    train_dataloader, test_dataloader = load_data(
+        vid_height=vid_height,
+        vid_width=vid_width,
+        frame_skip=frame_skip,
+        grayscale=grayscale,
+    )
+
+    # Train models
     model = POCAN()
     loss_function = nn.CrossEntropyLoss()
     opt = optim.SGD(model.parameters(), lr=0.01)
