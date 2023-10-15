@@ -4,6 +4,7 @@ import argparse
 
 from data.utils import load_data, download_data_if_not_downloaded
 from models.pocan import POCAN
+from models.foleygan import LRCNModel as foleyGAN
 
 
 def train(model, train_dataloader, criterion, opt, num_epochs=10):
@@ -27,8 +28,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model", choices=["pocan", "foleygan", "vig"], type=str, required=True
     )
-    parser.add_argument("--n_train", default=1000, type=int)
-    parser.add_argument("--n_test", default=200, type=int)
+    parser.add_argument("--n_train", default=10, type=int)
+    parser.add_argument("--n_test", default=5, type=int)
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=240, type=int)
     parser.add_argument("--vid_width", default=360, type=int)
@@ -52,7 +53,11 @@ if __name__ == "__main__":
     )
 
     # Train models
-    model = POCAN()
+    if config.model == "pocan":
+        model = POCAN()
+    elif config.model == "foleygan":
+        model = foleyGAN()
+    
     loss_function = nn.CrossEntropyLoss()
     opt = optim.SGD(model.parameters(), lr=0.01)
     train(model, train_dataloader, loss_function, opt)

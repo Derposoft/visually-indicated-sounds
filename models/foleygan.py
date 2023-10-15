@@ -1,9 +1,17 @@
+"""
+Implementation of of "FoleyGAN: Visually Guided Generative Adversarial 
+Network-Based Synchronous Sound Generation in Silent Videos".
+
+https://arxiv.org/pdf/2107.09262.pdf
+"""
+
 import torch
 import torch.nn as nn
 
 class LRCNModel(nn.Module):
-    def __init__(self, sequence_length, video_image_height, video_image_width, classes_list):
-        super(LRCNModel, self).__init()
+    #def __init__(self, sequence_length, video_image_height, video_image_width, classes_list=10):
+    def __init__(self, classes_list=["a", "b", "c", "d", "e"]):
+        super(LRCNModel, self).__init__()
         
         # Create the CNN layers with TimeDistributed
         self.cnn = nn.Sequential(
@@ -39,7 +47,7 @@ class LRCNModel(nn.Module):
         x = self.cnn(x)
         
         # Reshape data for LSTM
-        x = x.view(x.size(0), sequence_length, -1)
+        #x = x.view(x.size(0), sequence_length, -1)
         
         # Apply LSTM layer
         x, _ = self.lstm(x)
