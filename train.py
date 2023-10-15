@@ -9,9 +9,9 @@ from models.pocan import POCAN
 def train(model, train_dataloader, criterion, opt, num_epochs=10):
     for epoch in range(num_epochs):
         running_loss = 0.0
-        for inputs, seq_lens, labels in train_dataloader:
+        for video_frames, audio_waves, labels in train_dataloader:
             opt.zero_grad()
-            outputs = model(inputs)
+            outputs = model(video_frames, audio_waves)
             loss = criterion(outputs, labels)
             loss.backward()
             opt.step()

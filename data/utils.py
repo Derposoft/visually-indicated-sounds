@@ -1,23 +1,30 @@
-import pickle as pkl
+import argparse
 import cv2
+from functools import lru_cache
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+from moviepy.editor import VideoFileClip, AudioFileClip
+import numpy as np
+import os
+import pickle as pkl
+from pytube import YouTube
+import scipy.signal as signal
+import shutil
 import torch
 from torch.utils.data import Dataset, DataLoader
-from functools import lru_cache
-
-import os, sys
-import numpy as np
+import torchaudio
+import torchaudio.transforms as audiotransforms
 from tqdm import tqdm
-from pytube import YouTube
-import argparse
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
-import shutil
+
+
+def get_filename_from_video_id(video_id: str):
+    return f"{video_id}.mp4"
 
 
 def download_video(video_id: str, dirname: str):
     # URL of the YouTube video you want to download
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     yt = YouTube(video_url)
-    filename = f"{video_id}.mp4"
+    filename = get_filename_from_video_id(video_id)
     video_stream = yt.streams.get_lowest_resolution()
     video_stream.download(output_path=dirname, filename=filename)
     return filename
@@ -85,6 +92,37 @@ def load_video_ids():
     return map
 
 
+def get_audio_features_by_video_id(video_id: str, data_dir: str) -> torch.Tensor:
+    """
+    Perform audio feature generation as described by "Visually Indicated Sounds", Owens et al.
+
+    Steps:
+    1. Apply band-pass filters w/ ERB spacing
+    2. Compute subband envelopes
+    3. Downsample and compress envelopes
+    """
+
+    # Get waveform from video_id, set algorithm parameters
+    file_path = os.path.join(data_dir, get_filename_from_video_id(video_id))
+    waveform, sample_rate = torchaudio.load(file_path)
+    out_rate = 90
+    compression_constant = 0.3
+
+    # Apply filter, compute envelope. Here we choose mel filterbank
+    mel_spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate)
+    spectrogram = mel_spectrogram(waveform)
+    spectrogram_tensor = torch.log1p(spectrogram)
+    spectrogram = spectrogram_tensor.numpy()
+    envelope = signal.hilbert(spectrogram, axis=0)
+    envelope = torch.Tensor(envelope)
+
+    # Downsample and compress the envelopes
+    downsampling = audiotransforms.Resample(orig_freq=sample_rate, new_freq=out_rate)
+    downsampled_envelopes = downsampling(envelope)
+    compressed_envelopes = torch.abs(downsampled_envelopes) ** compression_constant
+    return compressed_envelopes
+
+
 def video_id_to_dataset_id(video_id: str) -> int:
     map = load_video_ids()
     return int(map[video_id])
@@ -102,21 +140,6 @@ def load_annotations_and_classmap():
     with open(class_map_file, "rb") as f:
         class_map = pkl.load(f)
     return annotations, class_map
-
-
-class PadSequence:
-    def __call__(self, batch):
-        # Sort batch by decreasing length
-        sorted_batch = sorted(batch, key=lambda x: x[0].shape[0], reverse=True)
-
-        # Pad sequences to max seq len
-        sequences = [x[0] for x in sorted_batch]
-        sequences_padded = torch.nn.utils.rnn.pad_sequence(sequences, batch_first=True)
-
-        # Get lengths and labels
-        lengths = torch.LongTensor([len(x) for x in sequences])
-        labels = torch.LongTensor([x[1] for x in sorted_batch])
-        return sequences_padded, lengths, labels
 
 
 class VideoDataset(Dataset):
@@ -150,7 +173,6 @@ class VideoDataset(Dataset):
                 frames.append(frame)
             frame_number += 1
         cap.release()
-        # print(f"{frame_number} frames; after skipping, {len(frames)} frames")
 
         # Apply frame size normalization transformation
         if self.transform:
@@ -162,7 +184,28 @@ class VideoDataset(Dataset):
         video_annotations = self.annotations.get(dataset_id, {})
         default_class_id = len(self.class_map)
         video_class = video_annotations.get("class_id", default_class_id)
-        return video_frames_tensor, video_class
+
+        # Load audio
+        audio = get_audio_features_by_video_id(video_id, self.data_dir)
+        return video_frames_tensor, audio, video_class
+
+
+class VideoDatasetCollator:
+    def __call__(self, batch) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Take incoming (video_frames_tensor, audio, video_class) and collates them.
+        """
+        # Collate video frames
+        video_frames = [x[0] for x in batch]
+        video_frames = torch.nn.utils.rnn.pad_sequence(video_frames, batch_first=True)
+
+        # Collate audio waveforms
+        audio_waves = [x[1] for x in batch]
+        audio_waves = torch.nn.utils.rnn.pad_sequence(audio_waves, batch_first=True)
+
+        # Collate labels
+        labels = torch.LongTensor([x[2] for x in batch])
+        return video_frames, audio_waves, labels
 
 
 @lru_cache(maxsize=None)
@@ -213,12 +256,12 @@ def load_data(
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        collate_fn=PadSequence(),
+        collate_fn=VideoDatasetCollator(),
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=batch_size,
-        collate_fn=PadSequence(),
+        collate_fn=VideoDatasetCollator(),
     )
     return train_dataloader, test_dataloader
 
