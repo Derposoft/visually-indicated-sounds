@@ -2,4 +2,4 @@ venv/
 data/vig*/*.mp4
 data/audioset
 *.npy
-__pycache__/
+__pycache__/.DS_Store
