@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-_lgEm3J3cj4.mp4,4
-_VdCrHztInA.mp4,7
-=======
 OR926HIiUOs.mp4,7
 Snz2sQ5QxeE.mp4,7
 9FDzG0xNp5s.mp4,7
@@ -165,4 +161,3 @@ Atrj65qRrBo.mp4,7
 jlz7r-NSUuA.mp4,7
 ciTlajq3JTU.mp4,7
 HV1J_actdHE.mp4,11
->>>>>>> main

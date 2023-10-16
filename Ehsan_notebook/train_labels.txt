@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-_4NEAgqguN0.mp4,4
-_3O_oBEzWAE.mp4,11
-_-ZSRcrbRGI.mp4,7
-=======
 GO_1gBjIR1c.mp4,8
 Fzs-OIw-Atw.mp4,3
 h6HkOxlVt5c.mp4,3
@@ -803,4 +798,3 @@ dtYo287OEJ8.mp4,9
 jKTOO2MWszA.mp4,13
 unOXaB3QoYk.mp4,11
 3rOi5Gd0LLY.mp4,13
->>>>>>> main
