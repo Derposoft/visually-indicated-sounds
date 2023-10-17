@@ -2,8 +2,8 @@ venv/
 data/vig*/*.mp4
 data/audioset
 *.npy
-__pycache__/.DS_Store
-.DS_Store
-.ipynb_checkpoints/
+__pycache__/
 .idea/
-Ehsan_notebook/.ipynb_checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+ints
