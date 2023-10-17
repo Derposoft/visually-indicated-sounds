@@ -22,7 +22,6 @@ class POCAN(nn.Module):
     def __init__(self):
         super(POCAN, self).__init__()
         self.cnn = models.resnet50(pretrained=True)
-        # self.fc1 = nn.Linear(in_features=64, out_features=10)
         self.lstm = VIGRnn()
 
     def forward(self, x, audio):
