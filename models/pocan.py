@@ -85,7 +85,7 @@ class POCAN(nn.Module):
             raise ValueError("Forward must be called first before calling loss!")
 
         # Classification loss
-        loss_cls = torch.log(self.c_hat_dist[range(len(self.c_hat_dist)), c])
+        loss_cls = -torch.log(self.c_hat_dist[range(len(self.c_hat_dist)), c])
 
         # Regression loss
         s = self.spectrogram(y).permute(0, 2, 1)  # (batch, seq, dim)

@@ -78,7 +78,6 @@ class VideoLSTM(nn.Module):
             hidden_size + num_classes if num_classes else hidden_size
         )
         self.fc1_audio = nn.Linear(hidden_size, audio_space_output_shape)
-        # self.fc2_audio = nn.Linear(hidden_size, 1)
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x: torch.Tensor):
