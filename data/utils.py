@@ -127,8 +127,17 @@ def match_seq_len(
     return src
 
 
-def get_audio_waveform_by_video_id(video_id: str, data_dir: str):
+def get_audio_waveform_by_video_id(video_id: str, data_dir: str, verbose: bool = False):
     file_path = os.path.join(data_dir, get_filename_from_video_id(video_id))
+    if not os.path.exists(file_path):
+        if verbose:
+            print("get_audio_waveform_by_video_id: called for undownloaded video_id.")
+        try:
+            _ = download_video(video_id, data_dir)
+        except:
+            print("Download failure.")
+            return None, None
+    assert os.path.exists(file_path), ""
     waveform, sample_rate = torchaudio.load(file_path)
     return waveform, sample_rate
 
@@ -175,7 +184,7 @@ def dataset_id_to_video_id(dataset_id: int) -> str:
     map = load_video_ids()
     inverse_map = {}
     for k in map:
-        inverse_map[map[k]] = k
+        inverse_map[int(map[k])] = k
     return inverse_map[dataset_id]
 
 
@@ -195,19 +204,28 @@ def load_annotations_and_classmap():
 
 @lru_cache(maxsize=None)
 def create_default_spectrograms(
-    sample_size=1, model="POCAN"
+    sample_size=1, model="POCAN", verbose=False
 ) -> dict[int, torch.Tensor]:
     """
     Function that generates default spectrograms for each audio class.
     For simplicity, we consider the "default" to simply be the spectrogram of a
     single random sample during testing.
     """
+    # For default spectrogram caching
+    default_spectrograms_filename = f"default_spectrograms_{sample_size}-samples.pkl"
+    default_spectrograms_path = os.path.join(
+        os.path.dirname(__file__), default_spectrograms_filename
+    )
+    if os.path.exists(default_spectrograms_path):
+        with open(default_spectrograms_path, "rb") as f:
+            return pkl.load(f)
+
+    # Find a sample for each class instance and create a spectrogram for it
     default_spectrograms = {}
     annotations, class_map = load_annotations_and_classmap()
     spectrogram_transform = audiotransforms.Spectrogram()
-
-    # Find a sample for each class instance and create a spectrogram for it
     for c in class_map:
+        c_id = class_map[c]
         n_samples = 0
         spectrograms = []
 
@@ -216,11 +234,14 @@ def create_default_spectrograms(
             video_annotations = annotations[dataset_id]
             default_class_id = len(class_map)
             video_class = video_annotations.get("class_id", default_class_id)
-            if video_class == c:
+            if video_class == c_id:
+                # Attempt to download this video and use its spectrogram
                 video_id = dataset_id_to_video_id(dataset_id)
                 waveform, sample_rate = get_audio_waveform_by_video_id(
                     video_id, train_dir
                 )
+                if waveform == None:
+                    continue
                 spectrogram = spectrogram_transform(waveform)
                 spectrograms.append(spectrogram)
                 n_samples += 1
@@ -232,6 +253,8 @@ def create_default_spectrograms(
             raise ValueError(
                 f"utils.py: Spectrogram list empty! No videos of class {c} found!"
             )
+        elif verbose:
+            print(f"Created default spectrogram for {c}")
         longest_spectrogram_len = max(len(spectrogram) for spectrogram in spectrograms)
         padded_spectrograms = [
             F.pad(spectrogram, (0, 0, 0, longest_spectrogram_len - len(spectrogram)))
@@ -240,6 +263,10 @@ def create_default_spectrograms(
         avg_spectrogram = torch.stack(padded_spectrograms).sum(dim=0)
         avg_spectrogram = avg_spectrogram / len(avg_spectrogram)
         default_spectrograms[c] = avg_spectrogram
+
+    # Cache default spectrograms
+    with open(default_spectrograms_path, "wb") as f:
+        pkl.dump(default_class_id, f)
     return default_spectrograms
 
 

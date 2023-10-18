@@ -24,9 +24,10 @@ class POCAN(nn.Module):
         num_lstm_layers: int = 2,
     ):
         super(POCAN, self).__init__()
-        self.grayscale_adapter = nn.Linear(1, 3) if is_grayscale else None
         cnn_output_dim = 2048 if use_resnet else 4096
-        self.cnn = modules.VideoCNN(output_size=cnn_output_dim, use_resnet=False)
+        self.cnn = modules.VideoCNN(
+            output_size=cnn_output_dim, use_resnet=False, is_grayscale=is_grayscale
+        )
         self.lstm = modules.VideoLSTM(
             cnn_output_dim,
             hidden_size,
@@ -50,9 +51,6 @@ class POCAN(nn.Module):
         :param x: (batch_size, seq_len, height, width) video frames
         :param _: unused audio waveforms
         """
-        if self.grayscale_adapter:
-            x = self.grayscale_adapter(x)
-
         x = self.cnn(x)
         self.c_hat_dist, self.s_additive = self.lstm(x)
         x = self.synthesize_spectrogram()

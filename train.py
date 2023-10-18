@@ -12,7 +12,13 @@ def train(model, train_dataloader, criterion, opt, num_epochs=10):
         for video_frames, audio_waves, labels in train_dataloader:
             opt.zero_grad()
             outputs = model(video_frames, audio_waves)
-            loss = criterion(outputs, labels)
+
+            if isinstance(model, POCAN):
+                # POCAN custom loss
+                loss = model.loss(labels, audio_waves)
+            else:
+                # Default loss
+                loss = criterion(outputs, labels)
             loss.backward()
             opt.step()
             running_loss += loss.item()
@@ -29,6 +35,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--n_train", default=1000, type=int)
     parser.add_argument("--n_test", default=200, type=int)
+    parser.add_argument("--batch_size", default=1, type=int)  # testing value
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=240, type=int)
     parser.add_argument("--vid_width", default=360, type=int)
@@ -36,6 +43,7 @@ if __name__ == "__main__":
     config = parser.parse_args()
     n_train = config.n_train
     n_test = config.n_test
+    batch_size = config.batch_size
     frame_skip = config.frame_skip
     vid_height = config.vid_height
     vid_width = config.vid_width
@@ -45,6 +53,7 @@ if __name__ == "__main__":
     utils.download_data_if_not_downloaded(n_train_videos=n_train, n_test_videos=n_test)
     train_dataloader, test_dataloader = utils.load_data(
         model=config.model,
+        batch_size=batch_size,
         vid_height=vid_height,
         vid_width=vid_width,
         frame_skip=frame_skip,

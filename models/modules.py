@@ -5,19 +5,28 @@ import torchvision.models as models
 
 
 class VideoCNN(nn.Module):
-    def __init__(self, output_size, use_resnet=False):
+    def __init__(self, output_size, use_resnet=False, is_grayscale=True):
         super(VideoCNN, self).__init__()
+        self.grayscale_adapter = nn.Linear(1, 3) if is_grayscale else None
+        default_num_classes = 1000
         if use_resnet:
             self.cnn = models.resnet50(
-                weights=models.ResNet50_Weights.IMAGENET1K_V1, num_classes=output_size
+                weights=models.ResNet50_Weights.IMAGENET1K_V1,
+                num_classes=default_num_classes,
             )
         else:
             self.cnn = models.alexnet(
-                weights=models.AlexNet_Weights.IMAGENET1K_V1, num_classes=output_size
+                weights=models.AlexNet_Weights.IMAGENET1K_V1,
+                num_classes=default_num_classes,
             )
+        self.fc = nn.Linear(default_num_classes, output_size)
 
     def forward(self, x):
+        if self.grayscale_adapter:
+            x = self.grayscale_adapter(x)
+
         x = self.cnn(x)
+        x = self.fc(x)
         return x
 
 
