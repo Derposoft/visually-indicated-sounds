@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=240, type=int)
     parser.add_argument("--vid_width", default=360, type=int)
-    parser.add_argument("--grayscale", default=True, type=bool)
+    parser.add_argument("--no_grayscale", action="store_true")
     config = parser.parse_args()
     n_train = config.n_train
     n_test = config.n_test
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     frame_skip = config.frame_skip
     vid_height = config.vid_height
     vid_width = config.vid_width
-    grayscale = config.grayscale
+    grayscale = not config.no_grayscale
 
     # Download data and get dataloaders
     utils.download_data_if_not_downloaded(n_train_videos=n_train, n_test_videos=n_test)

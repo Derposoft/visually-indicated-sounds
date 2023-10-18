@@ -104,13 +104,16 @@ def match_seq_len(
     paper just assumes that the clip and generated audio are the same length
     so this is a way to deal with that. Since this is a more general utility
     function that is also used in this file, I'm putting it here.
+
+    :param tgt: target sequence to match shape to, of size (seq_len, dim)
+    :param src: source sequence to mold, of size (batch_size, seq_len', dim)
     """
-    tgt_bs, tgt_seq_len, tgt_dim = tgt.size()
+    tgt_seq_len, tgt_dim = tgt.size()
     src_bs, src_seq_len, src_dim = src.size()
     ALLOWABLE_PAD_THRESHOLD = tgt_seq_len * 0.2
     pad_amount = tgt_seq_len - src_seq_len
 
-    assert tgt_bs == src_bs, "ERROR: bad batch sizes in internal calculations"
+    # assert tgt_bs == src_bs, "ERROR: bad batch sizes in internal calculations"
     assert tgt_dim == src_dim, "ERROR: bad dim in internal calculations"
 
     if pad_amount < 0:
@@ -127,7 +130,10 @@ def match_seq_len(
     return src
 
 
-def get_audio_waveform_by_video_id(video_id: str, data_dir: str, verbose: bool = False):
+def get_audio_waveform_by_video_id(
+    video_id: str, data_dir: str, verbose: bool = False, mono: bool = True
+):
+    """TODO doesn't support stereo audio."""
     file_path = os.path.join(data_dir, get_filename_from_video_id(video_id))
     if not os.path.exists(file_path):
         if verbose:
@@ -139,6 +145,10 @@ def get_audio_waveform_by_video_id(video_id: str, data_dir: str, verbose: bool =
             return None, None
     assert os.path.exists(file_path), ""
     waveform, sample_rate = torchaudio.load(file_path)
+
+    # Enforce mono audio
+    if mono:
+        waveform = waveform[0]
     return waveform, sample_rate
 
 
@@ -204,12 +214,14 @@ def load_annotations_and_classmap():
 
 @lru_cache(maxsize=None)
 def create_default_spectrograms(
-    sample_size=1, model="POCAN", verbose=False
+    sample_size=1, model="POCAN", verbose=False, n_fft=400
 ) -> dict[int, torch.Tensor]:
     """
     Function that generates default spectrograms for each audio class.
     For simplicity, we consider the "default" to simply be the spectrogram of a
     single random sample during testing.
+
+    Returns a dictionary of class ids to complex-valued spectrogram.
     """
     # For default spectrogram caching
     default_spectrograms_filename = f"default_spectrograms_{sample_size}-samples.pkl"
@@ -223,7 +235,7 @@ def create_default_spectrograms(
     # Find a sample for each class instance and create a spectrogram for it
     default_spectrograms = {}
     annotations, class_map = load_annotations_and_classmap()
-    spectrogram_transform = audiotransforms.Spectrogram()
+    spectrogram_transform = audiotransforms.Spectrogram(n_fft=n_fft, power=None)
     for c in class_map:
         c_id = class_map[c]
         n_samples = 0
@@ -242,7 +254,7 @@ def create_default_spectrograms(
                 )
                 if waveform == None:
                     continue
-                spectrogram = spectrogram_transform(waveform)
+                spectrogram: torch.Tensor = spectrogram_transform(waveform)
                 spectrograms.append(spectrogram)
                 n_samples += 1
             if n_samples >= sample_size:
@@ -255,18 +267,22 @@ def create_default_spectrograms(
             )
         elif verbose:
             print(f"Created default spectrogram for {c}")
-        longest_spectrogram_len = max(len(spectrogram) for spectrogram in spectrograms)
+        longest_spectrogram_len = max(
+            spectrogram.shape[-1] for spectrogram in spectrograms
+        )
         padded_spectrograms = [
-            F.pad(spectrogram, (0, 0, 0, longest_spectrogram_len - len(spectrogram)))
+            F.pad(
+                spectrogram, (0, longest_spectrogram_len - spectrogram.shape[-1], 0, 0)
+            )
             for spectrogram in spectrograms
         ]
         avg_spectrogram = torch.stack(padded_spectrograms).sum(dim=0)
         avg_spectrogram = avg_spectrogram / len(avg_spectrogram)
-        default_spectrograms[c] = avg_spectrogram
+        default_spectrograms[c_id] = avg_spectrogram.permute(1, 0)  # (seq_len, dim)
 
     # Cache default spectrograms
     with open(default_spectrograms_path, "wb") as f:
-        pkl.dump(default_class_id, f)
+        pkl.dump(default_spectrograms, f)
     return default_spectrograms
 
 

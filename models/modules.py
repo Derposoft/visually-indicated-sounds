@@ -21,11 +21,24 @@ class VideoCNN(nn.Module):
             )
         self.fc = nn.Linear(default_num_classes, output_size)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """
+        :param x: Video input. Input size expectation: (batch_size, n_frames, height, width, [depth]), with
+        depth dimension only present if is_grayscale=False during initialization.
+        """
         if self.grayscale_adapter:
+            batch_size, n_frames, height, width = x.shape
+            x = x.reshape([batch_size, n_frames, height, width, 1])
             x = self.grayscale_adapter(x)
 
+        # Update indices to (batch_size, n_frames, depth, height, width) and batch all frames
+        x = x.permute(0, 1, 4, 2, 3)
+        batch_size, n_frames, depth, height, width = x.shape
+        x = x.reshape([-1, depth, height, width])
         x = self.cnn(x)
+
+        # Separate batch and frames again and project to output size
+        x = x.reshape([batch_size, n_frames, -1])
         x = self.fc(x)
         return x
 
@@ -80,6 +93,7 @@ class VideoLSTM(nn.Module):
             c, x = x[:, :, : self.num_classes], x[:, :, self.num_classes :]
             c = self.softmax(c)
             c = torch.sum(c, dim=1) / seq_len
+            print("c shape, x shape", c.shape, x.shape)
             return c, x
 
         return x
