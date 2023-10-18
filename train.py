@@ -56,6 +56,9 @@ if __name__ == "__main__":
     if config.model == "pocan":
         model = POCAN()
     elif config.model == "foleygan":
+        img_feature_dim = 240
+        num_frames = 10
+        num_class = 15
         model = foleyGAN()
     
     loss_function = nn.CrossEntropyLoss()

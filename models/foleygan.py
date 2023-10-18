@@ -8,26 +8,45 @@ https://arxiv.org/pdf/2107.09262.pdf
 import torch
 import torch.nn as nn
 import torchvision.models as models
+import torchaudio.transforms as audiotransforms
 from models.TRNmodule import RelationModule, RelationModuleMultiScale
+from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample,
+                                       save_as_images, display_in_terminal)
 
+
+# What is img_feature_dim?
 class foleygan(nn.Module):
-    def __init__(self, img_feature_dim, num_frames, num_class):
-        self.num_frames = num_frames
-        self.num_class = num_class
-        self.img_feature_dim = img_feature_dim
+    def __init__(
+        self, 
+        is_grayscale: bool = True,
+        img_feature_dim, 
+        num_frames, 
+        num_class
+        ):
         super(foleygan, self).__init__()
-        self.cnn = models.resnet50(pretrained=True)
+        self.grayscale_adapter = nn.Linear(1, 3) if is_grayscale else None
+        self.cnn = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1, num_classes=num_class)
+
         self.trn = RelationModule(img_feature_dim, num_frames, num_class)
         self.mtrn = RelationModuleMultiScale(img_feature_dim, num_frames, num_class)
+
+        self.spectrogram = audiotransforms.Spectrogram()
+
+        self.biggan = BigGAN.from_pretrained('biggan-deep-512')
 
 def forward(self, x):
         # Apply ResNet50
         x_resnet50 = self.cnn(x)
+
         x_mtrn = self.mtrn(x_resnet50)
         x_trn = self.trn(x_resnet50)
 
-        x = self.fc1(x)
-        return x_mtrn, x_trn
+        x_spectrogram = self.spectrogram(x_trn)
+        #x_class = self.fc1(x_mtrn)
+        x_class = x_mtrn
+
+        x = self.biggan(x_spectrogram, x_class)
+        return x
 
 # class LRCNModel(nn.Module):
 #     #def __init__(self, sequence_length, video_image_height, video_image_width, classes_list=10):
