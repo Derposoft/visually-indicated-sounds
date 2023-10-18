@@ -13,12 +13,12 @@ class VideoCNN(nn.Module):
             self.cnn = models.resnet50(
                 weights=models.ResNet50_Weights.IMAGENET1K_V1,
                 num_classes=default_num_classes,
-            )
+            ).eval()
         else:
             self.cnn = models.alexnet(
                 weights=models.AlexNet_Weights.IMAGENET1K_V1,
                 num_classes=default_num_classes,
-            )
+            ).eval()
         self.fc = nn.Linear(default_num_classes, output_size)
 
     def forward(self, x: torch.Tensor):
