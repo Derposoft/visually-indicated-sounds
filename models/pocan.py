@@ -74,8 +74,8 @@ class POCAN(nn.Module):
         self,
         c: torch.Tensor,
         y: torch.Tensor,
-        lbda: float = 1.0,
-        mu: float = 1.0,
+        lbda: float = 50.0,
+        mu: float = 100.0,
     ):
         """
         :param c: Ground truth sound classes labels of size (batch_size,)
@@ -92,6 +92,7 @@ class POCAN(nn.Module):
         sp = match_seq_len(s[0], self.s_hat)
         s_mag, sp_mag = torch.abs(s), torch.abs(sp)  # hack? not sure what paper did
         loss_reg = self.smooth_l1_loss(s_mag, sp_mag)
+        loss_reg = torch.abs(loss_reg)  # do i even need this?
 
         # Perceptual loss
         y_hat = self.synthesize_audiowave(sp)
@@ -102,5 +103,6 @@ class POCAN(nn.Module):
             [y_hat.shape[0], -1]
         )  # match_seq_len was poorly thought out. oops.
         loss_p = self.smooth_l1_loss(y, y_hat)
+        loss_p = torch.abs(loss_p)
 
         return loss_cls + lbda * loss_reg + mu * loss_p
