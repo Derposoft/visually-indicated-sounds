@@ -55,9 +55,7 @@ class POCAN(nn.Module):
         x = self.cnn(x)
         self.c_hat_dist, self.s_additive = self.lstm(x)
         x = self.synthesize_spectrogram()
-        print(x.shape)
         x = self.synthesize_audiowave(x)
-        print(x.shape)
         return x
 
     def synthesize_audiowave(self, spectrogram: torch.Tensor):
@@ -90,13 +88,19 @@ class POCAN(nn.Module):
         loss_cls = torch.log(self.c_hat_dist[range(len(self.c_hat_dist)), c])
 
         # Regression loss
-        sp = self.s_hat
-        s = self.spectrogram(y)
-        loss_reg = self.smooth_l1_loss(s, sp)
+        s = self.spectrogram(y).permute(0, 2, 1)  # (batch, seq, dim)
+        sp = match_seq_len(s[0], self.s_hat)
+        s_mag, sp_mag = torch.abs(s), torch.abs(sp)  # hack? not sure what paper did
+        loss_reg = self.smooth_l1_loss(s_mag, sp_mag)
 
         # Perceptual loss
-        # y_hat = self.audiowave(sp)
         y_hat = self.synthesize_audiowave(sp)
+        y_hat = match_seq_len(
+            torch.zeros([y.shape[1], 1]),
+            y_hat.reshape([y_hat.shape[0], y_hat.shape[1], 1]),
+        ).reshape(
+            [y_hat.shape[0], -1]
+        )  # match_seq_len was poorly thought out. oops.
         loss_p = self.smooth_l1_loss(y, y_hat)
 
         return loss_cls + lbda * loss_reg + mu * loss_p

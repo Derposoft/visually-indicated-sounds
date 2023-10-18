@@ -170,6 +170,10 @@ def get_audio_features_by_video_id(
     out_rate = 90
     compression_constant = 0.3
 
+    # Perform special audio feature extraction by model
+    if model == "pocan":
+        return waveform
+
     # Apply filter, compute envelope. Here we choose mel filterbank
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate)
     spectrogram = mel_spectrogram(waveform)

@@ -93,7 +93,6 @@ class VideoLSTM(nn.Module):
             c, x = x[:, :, : self.num_classes], x[:, :, self.num_classes :]
             c = self.softmax(c)
             c = torch.sum(c, dim=1) / seq_len
-            print("c shape, x shape", c.shape, x.shape)
             return c, x
 
         return x
