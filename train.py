@@ -6,22 +6,24 @@ import data.utils as utils
 from models.pocan import POCAN
 
 
-def train(model, train_dataloader, criterion, opt, num_epochs=10):
+def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
     for epoch in range(num_epochs):
         running_loss = 0.0
         for video_frames, audio_waves, labels in train_dataloader:
             opt.zero_grad()
             outputs = model(video_frames, audio_waves)
 
+            # Custom losses by model
             if isinstance(model, POCAN):
-                # POCAN custom loss
                 loss = model.loss(labels, audio_waves)
             else:
-                # Default loss
                 loss = criterion(outputs, labels)
             loss.backward()
             opt.step()
             running_loss += loss.item()
+
+            if verbose:
+                print(f"Current running loss: {running_loss}")
 
         average_loss = running_loss / len(train_dataloader)
         print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss:.4f}")
@@ -35,11 +37,13 @@ if __name__ == "__main__":
     )
     parser.add_argument("--n_train", default=1000, type=int)
     parser.add_argument("--n_test", default=200, type=int)
+    parser.add_argument("--epochs", default=10, type=int)
     parser.add_argument("--batch_size", default=1, type=int)  # testing value
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=240, type=int)
     parser.add_argument("--vid_width", default=360, type=int)
     parser.add_argument("--no_grayscale", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
     config = parser.parse_args()
     n_train = config.n_train
     n_test = config.n_test
@@ -48,6 +52,8 @@ if __name__ == "__main__":
     vid_height = config.vid_height
     vid_width = config.vid_width
     grayscale = not config.no_grayscale
+    verbose = config.verbose
+    epochs = config.epochs
 
     # Download data and get dataloaders
     utils.download_data_if_not_downloaded(n_train_videos=n_train, n_test_videos=n_test)
@@ -83,4 +89,6 @@ if __name__ == "__main__":
     assert model != None
     loss_function = nn.CrossEntropyLoss()
     opt = optim.SGD(model.parameters(), lr=0.01)
-    train(model, train_dataloader, loss_function, opt)
+    train(
+        model, train_dataloader, loss_function, opt, num_epochs=epochs, verbose=verbose
+    )
