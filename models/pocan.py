@@ -21,7 +21,7 @@ class POCAN(nn.Module):
         width: int = 360,
         use_resnet: bool = False,
         hidden_size: int = 20,
-        num_layers_lstm: int = 2,
+        num_lstm_layers: int = 2,
     ):
         super(POCAN, self).__init__()
         self.grayscale_adapter = nn.Linear(1, 3) if is_grayscale else None
@@ -30,7 +30,7 @@ class POCAN(nn.Module):
         self.lstm = modules.VideoLSTM(
             cnn_output_dim,
             hidden_size,
-            num_layers_lstm,
+            num_lstm_layers,
             num_classes=num_classes,
             predict_class=True,
         )

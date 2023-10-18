@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.optim as optim
 import argparse
 
-from data.utils import load_data, download_data_if_not_downloaded
+import data.utils as utils
 from models.pocan import POCAN
 
 
@@ -42,8 +42,8 @@ if __name__ == "__main__":
     grayscale = config.grayscale
 
     # Download data and get dataloaders
-    download_data_if_not_downloaded(n_train_videos=n_train, n_test_videos=n_test)
-    train_dataloader, test_dataloader = load_data(
+    utils.download_data_if_not_downloaded(n_train_videos=n_train, n_test_videos=n_test)
+    train_dataloader, test_dataloader = utils.load_data(
         model=config.model,
         vid_height=vid_height,
         vid_width=vid_width,
@@ -52,7 +52,26 @@ if __name__ == "__main__":
     )
 
     # Train models
-    model = POCAN()
+    annotations, class_map = utils.load_annotations_and_classmap()
+    num_classes = len(class_map)
+    if config.model == "foleygan":
+        model = None  # TODO
+    elif config.model == "pocan":
+        hidden_size = 20
+        num_lstm_layers = 2
+        model = POCAN(
+            num_classes,
+            is_grayscale=grayscale,
+            height=vid_height,
+            width=vid_width,
+            use_resnet=False,
+            hidden_size=hidden_size,
+            num_lstm_layers=num_lstm_layers,
+        )
+    elif config.model == "vig":
+        model = None  # TODO
+
+    assert model != None
     loss_function = nn.CrossEntropyLoss()
     opt = optim.SGD(model.parameters(), lr=0.01)
     train(model, train_dataloader, loss_function, opt)
