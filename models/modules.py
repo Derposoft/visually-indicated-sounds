@@ -1,9 +1,27 @@
 import torch
 import torch.nn as nn
 import math
+import torchvision.models as models
 
 
-class VIGRnn(nn.Module):
+class VideoCNN(nn.Module):
+    def __init__(self, output_size, use_resnet=False):
+        super(VideoCNN, self).__init__()
+        if use_resnet:
+            self.cnn = models.resnet50(
+                weights=models.ResNet50_Weights.IMAGENET1K_V1, num_classes=output_size
+            )
+        else:
+            self.cnn = models.alexnet(
+                weights=models.AlexNet_Weights.IMAGENET1K_V1, num_classes=output_size
+            )
+
+    def forward(self, x):
+        x = self.cnn(x)
+        return x
+
+
+class VideoLSTM(nn.Module):
     def __init__(
         self,
         input_size: int,
@@ -12,6 +30,7 @@ class VIGRnn(nn.Module):
         video_fps: float = 24,
         audio_sampling_rate_khz: float = 90,
         num_classes=None,
+        predict_class=False,
     ):
         """
         Creates an LSTM with a forward function which takes (batch_size, seq_len, input_size) tensors
@@ -20,31 +39,39 @@ class VIGRnn(nn.Module):
         :param input_size: dimension of each item in sequence
         :param hidden_size: hidden dimension size of lstm
         """
-        super(VIGRnn, self).__init__()
+        super(VideoLSTM, self).__init__()
 
+        assert (
+            not predict_class or num_classes != None
+        ), "num_classes must be set if we're predicting classes."
+        self.predict_class = predict_class
         self.num_classes = num_classes
-        # TODO for if we want to replicate hidden states from our cnn
+        self.hidden_size = hidden_size
         self.video_fps = video_fps
         self.audio_sampling_rate_khz = audio_sampling_rate_khz
-        self.k = math.floor(self.audio_sampling_rate_khz / self.video_fps)
+        self.k = math.floor(self.audio_sampling_rate_khz / self.video_fps)  # TODO
 
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         audio_space_output_shape = (
             hidden_size + num_classes if num_classes else hidden_size
         )
         self.fc1_audio = nn.Linear(hidden_size, audio_space_output_shape)
-        self.fc2_audio = nn.Linear(audio_space_output_shape, 1)
+        # self.fc2_audio = nn.Linear(hidden_size, 1)
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x: torch.Tensor):
         # Input size: (batch_size, seq_len, dim)
+        assert len(x.shape) == 3, "Must have batch size > 1"
         batch_size, seq_len, dim = x.shape
-        h, _ = self.lstm(x)
-        x = self.fc1_audio(h)
-        x = self.fc2_audio(x)
+        x, _ = self.lstm(x)
+        x = self.fc1_audio(x)
 
-        # TODO do something here to pull out the predicted class for POCAN
-        if self.num_classes:
-            pass
+        # If using LSTM to predict class
+        if self.predict_class:
+            c, x = x[:, :, : self.num_classes], x[:, :, self.num_classes :]
+            c = self.softmax(c)
+            c = torch.sum(c, dim=1) / seq_len
+            return c, x
 
         return x
 
@@ -58,7 +85,7 @@ if __name__ == "__main__":
     input_size = 1000
     lstm_hidden_size = 20
     lstm_layers = 2
-    rnn = VIGRnn(input_size, lstm_hidden_size, lstm_layers)
+    rnn = VideoLSTM(input_size, lstm_hidden_size, lstm_layers)
     test_input = torch.rand([batch_size, seq_len, input_size])
     test_output = rnn(test_input)
     received_output_size = test_output.shape
