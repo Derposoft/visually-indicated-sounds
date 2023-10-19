@@ -5,5 +5,5 @@ data/audioset
 __pycache__/
 .idea/
 .ipynb_checkpoints/
-*/.ipynb_checkpoints/
-ints
+.DS_Store
+*.pkl
