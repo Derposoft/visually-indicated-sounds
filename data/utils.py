@@ -2,7 +2,6 @@ import argparse
 import cv2
 from functools import lru_cache
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
-from moviepy.editor import VideoFileClip, AudioFileClip
 import numpy as np
 import os
 import pickle as pkl
@@ -10,10 +9,15 @@ from pytube import YouTube
 import scipy.signal as signal
 import shutil
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import torchaudio
 import torchaudio.transforms as audiotransforms
 from tqdm import tqdm
+
+
+train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
+test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
 
 
 def get_filename_from_video_id(video_id: str):
@@ -92,9 +96,68 @@ def load_video_ids():
     return map
 
 
-def get_audio_features_by_video_id(video_id: str, data_dir: str) -> torch.Tensor:
+def match_seq_len(
+    tgt: torch.Tensor, src: torch.Tensor, verbose: bool = False
+) -> torch.Tensor:
+    """
+    Weird hacky function to make src and tgt match seq lens. Original POCAN
+    paper just assumes that the clip and generated audio are the same length
+    so this is a way to deal with that. Since this is a more general utility
+    function that is also used in this file, I'm putting it here.
+
+    :param tgt: target sequence to match shape to, of size (seq_len, dim)
+    :param src: source sequence to mold, of size (batch_size, seq_len', dim)
+    """
+    tgt_seq_len, tgt_dim = tgt.size()
+    src_bs, src_seq_len, src_dim = src.size()
+    ALLOWABLE_PAD_THRESHOLD = tgt_seq_len * 0.2
+    pad_amount = tgt_seq_len - src_seq_len
+
+    # assert tgt_bs == src_bs, "ERROR: bad batch sizes in internal calculations"
+    assert tgt_dim == src_dim, "ERROR: bad dim in internal calculations"
+
+    if pad_amount < 0:
+        src = src[:, :tgt_seq_len, :]
+    elif pad_amount > 0:
+        src = F.pad(src, (0, 0, 0, pad_amount))
+
+    # Just in case this function actually doesn't do what we want :^)
+    if verbose and abs(pad_amount) > ALLOWABLE_PAD_THRESHOLD:
+        print(
+            "***WARNING*** utils.py: Exceeding spectrogram synthesizer pad threshold! "
+            f"threshold={ALLOWABLE_PAD_THRESHOLD} -- pad={pad_amount}"
+        )
+    return src
+
+
+def get_audio_waveform_by_video_id(
+    video_id: str, data_dir: str, verbose: bool = False, mono: bool = True
+):
+    """TODO doesn't support stereo audio."""
+    file_path = os.path.join(data_dir, get_filename_from_video_id(video_id))
+    if not os.path.exists(file_path):
+        if verbose:
+            print("get_audio_waveform_by_video_id: called for undownloaded video_id.")
+        try:
+            _ = download_video(video_id, data_dir)
+        except:
+            print("Download failure.")
+            return None, None
+    assert os.path.exists(file_path), ""
+    waveform, sample_rate = torchaudio.load(file_path)
+
+    # Enforce mono audio
+    if mono:
+        waveform = waveform[0]
+    return waveform, sample_rate
+
+
+def get_audio_features_by_video_id(
+    video_id: str, data_dir: str, model: str
+) -> torch.Tensor:
     """
     Perform audio feature generation as described by "Visually Indicated Sounds", Owens et al.
+    TODO different audio feature extraction for each model, if we have time
 
     Steps:
     1. Apply band-pass filters w/ ERB spacing
@@ -103,10 +166,13 @@ def get_audio_features_by_video_id(video_id: str, data_dir: str) -> torch.Tensor
     """
 
     # Get waveform from video_id, set algorithm parameters
-    file_path = os.path.join(data_dir, get_filename_from_video_id(video_id))
-    waveform, sample_rate = torchaudio.load(file_path)
+    waveform, sample_rate = get_audio_waveform_by_video_id(video_id, data_dir)
     out_rate = 90
     compression_constant = 0.3
+
+    # Perform special audio feature extraction by model
+    if model == "pocan":
+        return waveform
 
     # Apply filter, compute envelope. Here we choose mel filterbank
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate)
@@ -128,6 +194,14 @@ def video_id_to_dataset_id(video_id: str) -> int:
     return int(map[video_id])
 
 
+def dataset_id_to_video_id(dataset_id: int) -> str:
+    map = load_video_ids()
+    inverse_map = {}
+    for k in map:
+        inverse_map[int(map[k])] = k
+    return inverse_map[dataset_id]
+
+
 def load_annotations_and_classmap():
     annotation_file = "vig_annotation.pkl"
     annotation_file = os.path.join(os.path.dirname(__file__), annotation_file)
@@ -142,13 +216,89 @@ def load_annotations_and_classmap():
     return annotations, class_map
 
 
+@lru_cache(maxsize=None)
+def create_default_spectrograms(
+    sample_size=1, model="POCAN", verbose=False, n_fft=400
+) -> dict[int, torch.Tensor]:
+    """
+    Function that generates default spectrograms for each audio class.
+    For simplicity, we consider the "default" to simply be the spectrogram of a
+    single random sample during testing.
+
+    Returns a dictionary of class ids to complex-valued spectrogram.
+    """
+    # For default spectrogram caching
+    default_spectrograms_filename = f"default_spectrograms_{sample_size}-samples.pkl"
+    default_spectrograms_path = os.path.join(
+        os.path.dirname(__file__), default_spectrograms_filename
+    )
+    if os.path.exists(default_spectrograms_path):
+        with open(default_spectrograms_path, "rb") as f:
+            return pkl.load(f)
+
+    # Find a sample for each class instance and create a spectrogram for it
+    default_spectrograms = {}
+    annotations, class_map = load_annotations_and_classmap()
+    spectrogram_transform = audiotransforms.Spectrogram(n_fft=n_fft, power=None)
+    for c in class_map:
+        c_id = class_map[c]
+        n_samples = 0
+        spectrograms = []
+
+        # Collect sample_size number of spectrograms for each class and average them
+        for dataset_id in annotations:
+            video_annotations = annotations[dataset_id]
+            default_class_id = len(class_map)
+            video_class = video_annotations.get("class_id", default_class_id)
+            if video_class == c_id:
+                # Attempt to download this video and use its spectrogram
+                video_id = dataset_id_to_video_id(dataset_id)
+                waveform, sample_rate = get_audio_waveform_by_video_id(
+                    video_id, train_dir
+                )
+                if waveform == None:
+                    continue
+                spectrogram: torch.Tensor = spectrogram_transform(waveform)
+                spectrograms.append(spectrogram)
+                n_samples += 1
+            if n_samples >= sample_size:
+                break
+
+        # Average collected spectrograms
+        if len(spectrograms) == 0:
+            raise ValueError(
+                f"utils.py: Spectrogram list empty! No videos of class {c} found!"
+            )
+        elif verbose:
+            print(f"Created default spectrogram for {c}")
+        longest_spectrogram_len = max(
+            spectrogram.shape[-1] for spectrogram in spectrograms
+        )
+        padded_spectrograms = [
+            F.pad(
+                spectrogram, (0, longest_spectrogram_len - spectrogram.shape[-1], 0, 0)
+            )
+            for spectrogram in spectrograms
+        ]
+        avg_spectrogram = torch.stack(padded_spectrograms).sum(dim=0)
+        avg_spectrogram = avg_spectrogram / len(avg_spectrogram)
+        default_spectrograms[c_id] = avg_spectrogram.permute(1, 0)  # (seq_len, dim)
+
+    # Cache default spectrograms
+    with open(default_spectrograms_path, "wb") as f:
+        pkl.dump(default_spectrograms, f)
+    return default_spectrograms
+
+
 class VideoDataset(Dataset):
     def __init__(
         self,
-        data_dir=os.path.join(os.path.dirname(__file__), "./vig"),
-        transform=None,
-        frame_skip=10,
+        model: str,
+        data_dir: str = os.path.join(os.path.dirname(__file__), "./vig"),
+        transform: bool = None,
+        frame_skip: int = 10,
     ):
+        self.model = model
         self.data_dir = data_dir
         self.video_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")]
         self.transform = transform
@@ -186,7 +336,7 @@ class VideoDataset(Dataset):
         video_class = video_annotations.get("class_id", default_class_id)
 
         # Load audio
-        audio = get_audio_features_by_video_id(video_id, self.data_dir)
+        audio = get_audio_features_by_video_id(video_id, self.data_dir, self.model)
         return video_frames_tensor, audio, video_class
 
 
@@ -235,11 +385,17 @@ def frame_normalizer(height=240, width=320, grayscale=True):
 
 
 def load_data(
-    batch_size=32, vid_height=240, vid_width=360, frame_skip=10, grayscale=True
+    model: str,
+    batch_size=32,
+    vid_height=240,
+    vid_width=360,
+    frame_skip=10,
+    grayscale=True,
 ) -> tuple[DataLoader, DataLoader]:
     train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
     test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
     train_dataset = VideoDataset(
+        model,
         train_dir,
         transform=frame_normalizer(
             height=vid_height, width=vid_width, grayscale=grayscale
@@ -247,6 +403,7 @@ def load_data(
         frame_skip=frame_skip,
     )
     test_dataset = VideoDataset(
+        model,
         test_dir,
         transform=frame_normalizer(
             height=vid_height, width=vid_width, grayscale=grayscale
@@ -274,6 +431,4 @@ if __name__ == "__main__":
     config = parser.parse_args()
     n_train = config.n_train
     n_test = config.n_test
-    train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
-    test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
     download_data(train_dir, test_dir, n_train, n_test)
