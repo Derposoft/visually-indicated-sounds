@@ -1,0 +1,2 @@
+{'Bleat': 2, 'Fireworks': 12, 'Splash, splatter': 13, 'Fire alarm': 9, 'Chicken, rooster': 3, 'Thunderstorm': 5, 'Gunshot, gunfire': 11, 'Rail transport': 7,
+'Spray': 14, 'Race car, auto racing': 6, 'Church bell': 4, 'Helicopter': 8, 'Bark': 0, 'Hammer': 10, 'Cattle, bovinae': 1}

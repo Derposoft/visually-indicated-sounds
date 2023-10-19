@@ -3,3 +3,8 @@ data/vig*/*.mp4
 data/audioset
 *.npy
 __pycache__/
+.idea/
+.ipynb_checkpoints/
+.DS_Store
+*.pkl
+*.pth
