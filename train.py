@@ -36,15 +36,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model", choices=["pocan", "foleygan", "vig"], type=str, required=True
     )
-<<<<<<< HEAD
-    parser.add_argument("--n_train", default=10, type=int)
-    parser.add_argument("--n_test", default=5, type=int)
-=======
     parser.add_argument("--n_train", default=1000, type=int)
     parser.add_argument("--n_test", default=200, type=int)
     parser.add_argument("--epochs", default=10, type=int)
     parser.add_argument("--batch_size", default=1, type=int)  # testing value
->>>>>>> main
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=240, type=int)
     parser.add_argument("--vid_width", default=360, type=int)

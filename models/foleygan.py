@@ -9,8 +9,9 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 import torchaudio.transforms as audiotransforms
+import models.modules as modules
 from models.TRNmodule import RelationModule, RelationModuleMultiScale
-from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample,
+from pytorch_pretrained_biggan import (one_hot_from_names, truncated_noise_sample,
                                        save_as_images, display_in_terminal)
 
 
@@ -18,34 +19,43 @@ from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noi
 class foleygan(nn.Module):
     def __init__(
         self, 
-        is_grayscale: bool = True,
-        img_feature_dim, 
-        num_frames, 
-        num_class
+        img_feature_dim,
+        num_class,
+        hidden_size,
+        n_fft,
+        is_grayscale: bool = True
         ):
         super(foleygan, self).__init__()
-        self.grayscale_adapter = nn.Linear(1, 3) if is_grayscale else None
-        self.cnn = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1, num_classes=num_class)
+        self.truncation = 0.4
+        MAX_NUM_FRAMES=30
 
-        self.trn = RelationModule(img_feature_dim, num_frames, num_class)
-        self.mtrn = RelationModuleMultiScale(img_feature_dim, num_frames, num_class)
+        self.cnn = modules.VideoCNN(img_feature_dim, use_resnet=True, is_grayscale=is_grayscale)
+        
+        self.trn = RelationModule(img_feature_dim, num_frames=MAX_NUM_FRAMES, num_class=num_class)
+        self.mtrn = RelationModuleMultiScale(img_feature_dim, num_frames=MAX_NUM_FRAMES, num_class=num_class)
 
-        self.spectrogram = audiotransforms.Spectrogram()
+        self.fc1 = nn.Linear()
 
-        self.biggan = BigGAN.from_pretrained('biggan-deep-512')
+        self.spectrogram = audiotransforms.Spectrogram(n_fft)
+        self.istft = audiotransforms.InverseSpectrogram(n_fft)
 
-def forward(self, x):
-        # Apply ResNet50
+        self.biggan = modules.BigGAN(hidden_size, MAX_NUM_FRAMES, n_fft)
+
+    def forward(self, x):
         x_resnet50 = self.cnn(x)
 
         x_mtrn = self.mtrn(x_resnet50)
         x_trn = self.trn(x_resnet50)
 
         x_spectrogram = self.spectrogram(x_trn)
-        #x_class = self.fc1(x_mtrn)
-        x_class = x_mtrn
+        x_class = self.fc1(x_mtrn)
 
-        x = self.biggan(x_spectrogram, x_class)
+        noise_vector = truncated_noise_sample(truncation=self.truncation, batch_size=3)
+        noise_vector = torch.from_numpy(noise_vector)
+
+        x_biggan = self.biggan(noise_vector, x_class, self.truncation, x_spectrogram)
+
+        x = self.istft(x_biggan)
         return x
 
 # class LRCNModel(nn.Module):
