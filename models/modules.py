@@ -3,6 +3,31 @@ import torch.nn as nn
 import math
 import torchvision.models as models
 
+class AlexNetClassifier(nn.Module):
+    def __init__(self, num_classes):
+        super(AlexNetClassifier, self).__init__()
+
+        # Data transformations
+        self.transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+        ])
+
+        # Define the AlexNet model
+        self.alexnet = models.alexnet(pretrained=False, num_classes=1000)
+
+        # Modify the classifier part of AlexNet to match your number of output classes
+        self.alexnet.classifier[6] = nn.Linear(4096, num_classes)
+
+    def forward(self, x):
+        # Apply data transformations
+        x = self.transform(x)
+        
+        # Forward pass through the AlexNet model
+        x = self.alexnet(x)
+        return x
 
 class VideoCNN(nn.Module):
     def __init__(self, output_size, use_resnet=False, is_grayscale=True):
