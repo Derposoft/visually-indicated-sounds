@@ -41,8 +41,8 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", default=10, type=int)
     parser.add_argument("--batch_size", default=1, type=int)  # testing value
     parser.add_argument("--frame_skip", default=10, type=int)
-    parser.add_argument("--vid_height", default=240, type=int)
-    parser.add_argument("--vid_width", default=240, type=int)
+    parser.add_argument("--vid_height", default=64, type=int)
+    parser.add_argument("--vid_width", default=64, type=int)
     parser.add_argument("--no_grayscale", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     config = parser.parse_args()
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     annotations, class_map = utils.load_annotations_and_classmap()
     num_classes = len(class_map)
     if config.model == "foleygan":
-        img_feature_dim = 240
+        img_feature_dim = 64
         hidden_size = 20
         n_fft = num_classes
         model = foleygan(img_feature_dim, num_classes, hidden_size, n_fft)
