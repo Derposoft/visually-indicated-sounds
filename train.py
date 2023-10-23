@@ -4,7 +4,7 @@ import argparse
 
 import data.utils as utils
 from models.pocan import POCAN
-from models.foleygan import LRCNModel as foleyGAN
+from models.foleygan import foleygan
 
 
 def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
@@ -36,13 +36,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model", choices=["pocan", "foleygan", "vig"], type=str, required=True
     )
-    parser.add_argument("--n_train", default=1000, type=int)
-    parser.add_argument("--n_test", default=200, type=int)
+    parser.add_argument("--n_train", default=10, type=int)
+    parser.add_argument("--n_test", default=5, type=int)
     parser.add_argument("--epochs", default=10, type=int)
     parser.add_argument("--batch_size", default=1, type=int)  # testing value
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=240, type=int)
-    parser.add_argument("--vid_width", default=360, type=int)
+    parser.add_argument("--vid_width", default=240, type=int)
     parser.add_argument("--no_grayscale", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     config = parser.parse_args()
@@ -72,7 +72,9 @@ if __name__ == "__main__":
     num_classes = len(class_map)
     if config.model == "foleygan":
         img_feature_dim = 240
-        model = foleyGAN(img_feature_dim, num_classes)
+        hidden_size = 20
+        n_fft = num_classes
+        model = foleygan(img_feature_dim, num_classes, hidden_size, n_fft)
     elif config.model == "pocan":
         hidden_size = 20
         num_lstm_layers = 2
