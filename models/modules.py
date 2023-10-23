@@ -429,6 +429,37 @@ class BigGANConfig(object):
     def to_json_string(self):
         """Serializes this instance to a JSON string."""
         return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
+    
+
+class Discriminator(nn.Module):
+    def __init__(self, input_size, image_height, color_channels=1):
+        super(Generator, self).__init__()
+        self.cnn = nn.Sequential(
+            # input is Z, going into a convolution
+            nn.ConvTranspose2d( input_size, image_height * 8, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(image_height * 8),
+            nn.ReLU(True),
+            # state size. ``(ngf*8) x 4 x 4``
+            nn.ConvTranspose2d(image_height * 8, image_height * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(image_height * 4),
+            nn.ReLU(True),
+            # state size. ``(ngf*4) x 8 x 8``
+            nn.ConvTranspose2d(image_height * 4, image_height * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(image_height * 2),
+            nn.ReLU(True),
+            # state size. ``(ngf*2) x 16 x 16``
+            nn.ConvTranspose2d(image_height * 2, image_height, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(image_height),
+            nn.ReLU(True),
+            # state size. ``(ngf) x 32 x 32``
+            nn.ConvTranspose2d(image_height, color_channels, 4, 2, 1, bias=False),
+            nn.Tanh()
+            # state size. ``(nc) x 64 x 64``
+        )
+
+    def forward(self, x):
+        x = self.cnn(x)
+        return x
 
 
 if __name__ == "__main__":

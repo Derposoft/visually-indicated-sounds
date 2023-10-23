@@ -34,7 +34,7 @@ class foleygan(nn.Module):
         self.trn = RelationModule(img_feature_dim, num_frames=MAX_NUM_FRAMES, num_class=num_class)
         self.mtrn = RelationModuleMultiScale(img_feature_dim, num_frames=MAX_NUM_FRAMES, num_class=num_class)
 
-        self.fc1 = nn.Linear()
+        self.fc1 = nn.Linear(num_class, insert_mtrn_output_size) # TODO
 
         self.spectrogram = audiotransforms.Spectrogram(n_fft)
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
