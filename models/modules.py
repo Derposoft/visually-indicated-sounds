@@ -24,7 +24,7 @@ class AlexNetClassifier(nn.Module):
     def forward(self, x):
         # Apply data transformations
         x = self.transform(x)
-        
+
         # Forward pass through the AlexNet model
         x = self.alexnet(x)
         return x
