@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 
-class cnn_lstm_model(nn.Module):
+class VIG(nn.Module):
     def __init__(self, num_classes, input_size=4096, hidden_size=512, num_layers=2):
-        super(CombinedModel, self).__init__()
+        super(VIG, self).__init__()
 
         # Define the transformation pipeline
         self.transform = transforms.Compose([
@@ -16,7 +16,6 @@ class cnn_lstm_model(nn.Module):
 
         # Define the AlexNet model
         self.alexnet = models.alexnet(pretrained=False, num_classes=15)
-
         self.alexnet.classifier[6] = nn.Linear(4096, num_classes)
 
         # Initialize the LSTM model
@@ -44,7 +43,3 @@ class cnn_lstm_model(nn.Module):
         lstm_out = self.fc(lstm_out[:, -1, :])
 
         return lstm_out
-
-#num_classes = 15  # Change this to your desired number of classes
-#combined_model = CombinedModel(num_classes)
-#print(combined_model)  # Print the model architecture

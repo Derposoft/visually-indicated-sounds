@@ -4,7 +4,7 @@ import argparse
 
 import data.utils as utils
 from models.pocan import POCAN
-
+from models.vig import VIG
 
 def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
     for epoch in range(num_epochs):
@@ -84,7 +84,8 @@ if __name__ == "__main__":
             num_lstm_layers=num_lstm_layers,
         )
     elif config.model == "vig":
-        model = None  # TODO
+        num_classes = 15
+        model = VIG(num_classes)
 
     assert model != None
     loss_function = nn.CrossEntropyLoss()
