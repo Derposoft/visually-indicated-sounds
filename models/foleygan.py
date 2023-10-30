@@ -38,9 +38,10 @@ class foleygan(nn.Module):
         self.fc1 = nn.Linear(num_class, num_class) # Output of mtrn is size num_class
 
         self.spectrogram = audiotransforms.Spectrogram(n_fft)
-        self.istft = audiotransforms.InverseSpectrogram(n_fft)
 
         self.biggan = modules.BigGAN(hidden_size, MAX_NUM_FRAMES, n_fft)
+
+        self.istft = audiotransforms.InverseSpectrogram(n_fft)
 
     def forward(self, x, _):
         x_resnet50 = self.cnn(x)

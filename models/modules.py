@@ -353,6 +353,7 @@ class BigGAN(nn.Module):
         self.embeddings = nn.Linear(config.num_classes, config.z_dim, bias=False)
         self.generator = Generator(config, hidden_size)
         self.linear = nn.Linear(n_frames*(n_fft//2 + 1), hidden_size)
+        self.maxpool = nn.MaxPool2d(16)
 
     def forward(self, z, class_label, truncation, spectrogram):
         assert 0 < truncation <= 1
@@ -363,6 +364,11 @@ class BigGAN(nn.Module):
 
         cond_vector = torch.cat((z, embed, spectrogram), dim=1)
         z = self.generator(cond_vector, truncation)
+
+        z = self.maxpool(z)
+
+        z = z.type(torch.complex64)
+
         return z
     
 
