@@ -26,12 +26,14 @@ class foleygan(nn.Module):
         ):
         super(foleygan, self).__init__()
         self.truncation = 0.4
-        MAX_NUM_FRAMES=30
+        TWO_FRAME_TRN = 2
+        MULTI_SCALE_NUM_FRAMES = 8
+        MAX_NUM_FRAMES = 3
 
         self.cnn = modules.VideoCNN(img_feature_dim, use_resnet=True, is_grayscale=is_grayscale)
         
-        self.trn = RelationModule(img_feature_dim, num_frames=MAX_NUM_FRAMES, num_class=num_class)
-        self.mtrn = RelationModuleMultiScale(img_feature_dim, num_frames=MAX_NUM_FRAMES, num_class=num_class)
+        self.trn = RelationModuleMultiScale(img_feature_dim, num_frames=TWO_FRAME_TRN, num_class=num_class)
+        self.mtrn = RelationModuleMultiScale(img_feature_dim, num_frames=MULTI_SCALE_NUM_FRAMES, num_class=num_class)
 
         self.fc1 = nn.Linear(num_class, num_class) # Output of mtrn is size num_class
 
@@ -40,7 +42,7 @@ class foleygan(nn.Module):
 
         self.biggan = modules.BigGAN(hidden_size, MAX_NUM_FRAMES, n_fft)
 
-    def forward(self, x):
+    def forward(self, x, _):
         x_resnet50 = self.cnn(x)
 
         x_mtrn = self.mtrn(x_resnet50)
@@ -49,7 +51,7 @@ class foleygan(nn.Module):
         x_spectrogram = self.spectrogram(x_trn)
         x_class = self.fc1(x_mtrn)
 
-        noise_vector = truncated_noise_sample(truncation=self.truncation, batch_size=3)
+        noise_vector = truncated_noise_sample(truncation=self.truncation, batch_size=1)
         noise_vector = torch.from_numpy(noise_vector)
 
         x_biggan = self.biggan(noise_vector, x_class, self.truncation, x_spectrogram)

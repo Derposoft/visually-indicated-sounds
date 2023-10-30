@@ -12,6 +12,8 @@ import torchvision.models as models
 import numpy as np
 import torch.nn.functional as F
 
+NUM_CLASSES = 15
+
 class VideoCNN(nn.Module):
     def __init__(self, output_size, use_resnet=False, is_grayscale=True):
         super(VideoCNN, self).__init__()
@@ -358,6 +360,7 @@ class BigGAN(nn.Module):
         spectrogram = spectrogram.reshape([spectrogram.shape[0], -1])
         embed = self.embeddings(class_label)
         spectrogram = self.linear(spectrogram)
+
         cond_vector = torch.cat((z, embed, spectrogram), dim=1)
         z = self.generator(cond_vector, truncation)
         return z
@@ -378,7 +381,7 @@ class BigGANConfig(object):
                  z_dim=128,
                  class_embed_dim=128,
                  channel_width=128,
-                 num_classes=1000,
+                 num_classes=NUM_CLASSES,
                  layers=[(False, 16, 16),
                          (True, 16, 16),
                          (False, 16, 16),
