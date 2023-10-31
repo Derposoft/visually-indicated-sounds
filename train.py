@@ -70,11 +70,15 @@ if __name__ == "__main__":
     # Train models
     annotations, class_map = utils.load_annotations_and_classmap()
     num_classes = len(class_map)
+
     if config.model == "foleygan":
         img_feature_dim = 64
         hidden_size = 20
         n_fft = num_classes
         model = foleygan(img_feature_dim, num_classes, hidden_size, n_fft)
+        loss_function = nn.HingeEmbeddingLoss()
+        opt = optim.Adam(model.parameters(), lr=0.0001)
+
     elif config.model == "pocan":
         hidden_size = 5
         num_lstm_layers = 2
@@ -87,13 +91,16 @@ if __name__ == "__main__":
             hidden_size=hidden_size,
             num_lstm_layers=num_lstm_layers,
         )
+        loss_function = nn.CrossEntropyLoss()
+        opt = optim.SGD(model.parameters(), lr=0.01)
+
     elif config.model == "vig":
         model = None  # TODO
+        loss_function = nn.CrossEntropyLoss()
+        opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
 
-    loss_function = nn.CrossEntropyLoss()
-    opt = optim.SGD(model.parameters(), lr=0.01)
     train(
         model, train_dataloader, loss_function, opt, num_epochs=epochs, verbose=verbose
     )
