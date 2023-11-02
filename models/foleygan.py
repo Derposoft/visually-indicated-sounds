@@ -43,6 +43,8 @@ class foleygan(nn.Module):
 
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
 
+        self.discriminator = modules.Discriminator(1, 50)
+
     def forward(self, x, _):
         x_resnet50 = self.cnn(x)
 
@@ -57,8 +59,8 @@ class foleygan(nn.Module):
 
         x_biggan = self.biggan(noise_vector, x_class, self.truncation, x_spectrogram)
 
-        print(x_biggan.size())
-
         x = self.istft(x_biggan)
+        
+        #x_discriminator = self.discriminator(x)
 
         return x
