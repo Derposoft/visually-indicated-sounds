@@ -57,5 +57,8 @@ class foleygan(nn.Module):
 
         x_biggan = self.biggan(noise_vector, x_class, self.truncation, x_spectrogram)
 
+        print(x_biggan.size())
+
         x = self.istft(x_biggan)
+
         return x

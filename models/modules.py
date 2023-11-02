@@ -327,20 +327,22 @@ class Generator(nn.Module):
         # We use this conversion step to be able to use TF weights:
         # TF convention on shape is [batch, height, width, channels]
         # PT convention on shape is [batch, channels, height, width]
-        z = z.view(-1, 4, 4, 16 * self.config.channel_width)
+        z = z.view(-1, 16, 16, 1 * self.config.channel_width)
         z = z.permute(0, 3, 1, 2).contiguous()
 
-        for i, layer in enumerate(self.layers):
-            if isinstance(layer, GenBlock):
-                z = layer(z, cond_vector, truncation)
-            else:
-                z = layer(z)
-
+        # for i, layer in enumerate(self.layers):
+        #     if isinstance(layer, GenBlock):
+        #         z = layer(z, cond_vector, truncation)
+        #     else:
+        #         z = layer(z)
+        #     print(z[0,0,0])
+        
         z = self.bn(z, truncation)
         z = self.relu(z)
         z = self.conv_to_rgb(z)
         z = z[:, :3, ...]
         z = self.tanh(z)
+        
         return z
 
 class BigGAN(nn.Module):
@@ -353,7 +355,7 @@ class BigGAN(nn.Module):
         self.embeddings = nn.Linear(config.num_classes, config.z_dim, bias=False)
         self.generator = Generator(config, hidden_size)
         self.linear = nn.Linear(n_frames*(n_fft//2 + 1), hidden_size)
-        self.maxpool = nn.MaxPool2d(16)
+        self.maxpool = nn.MaxPool2d(2)
 
     def forward(self, z, class_label, truncation, spectrogram):
         assert 0 < truncation <= 1
