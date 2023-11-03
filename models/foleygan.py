@@ -7,10 +7,10 @@ https://arxiv.org/pdf/2107.09262.pdf
 
 import torch
 import torch.nn as nn
-import torchvision.models as models
 import torchaudio.transforms as audiotransforms
 import models.modules as modules
-from models.TRNmodule import RelationModule, RelationModuleMultiScale
+from models.modules_biggan import BigGAN
+from models.modules_trn import RelationModuleMultiScale
 from pytorch_pretrained_biggan import (one_hot_from_names, truncated_noise_sample,
                                        save_as_images, display_in_terminal)
 
@@ -39,7 +39,7 @@ class foleygan(nn.Module):
 
         self.spectrogram = audiotransforms.Spectrogram(n_fft)
 
-        self.biggan = modules.BigGAN(hidden_size, MAX_NUM_FRAMES, n_fft)
+        self.biggan = BigGAN(hidden_size, MAX_NUM_FRAMES, n_fft)
 
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
 
