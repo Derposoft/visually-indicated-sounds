@@ -1,15 +1,10 @@
 """
-Implementation of of "Visually Indicated Sound Generation by Perceptually Optimized 
-Classification".
-
-https://openaccess.thecvf.com/content_ECCVW_2018/papers/11134/Chen_Visually_Indicated_Sound_Generation_by_Perceptually_Optimized_Classification_ECCVW_2018_paper.pdf
+Implementation of of D-VIG as described in our midterm report.
 """
 import torch
 import torch.nn as nn
-import torchaudio.transforms as audiotransforms
 
 import models.modules as modules
-from data.utils import create_default_spectrograms, match_seq_len
 
 
 class DiffusionVIG(nn.Module):
