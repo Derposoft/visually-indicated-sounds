@@ -1,33 +1,16 @@
+from __future__ import (absolute_import, division, print_function, unicode_literals)
+
+import os
+import logging
+import copy
+import json
+
 import torch
 import torch.nn as nn
 import math
 import torchvision.models as models
-
-class AlexNetClassifier(nn.Module):
-    def __init__(self, num_classes):
-        super(AlexNetClassifier, self).__init__()
-
-        # Data transformations
-        self.transform = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-        ])
-
-        # Define the AlexNet model
-        self.alexnet = models.alexnet(pretrained=False, num_classes=1000)
-
-        # Modify the classifier part of AlexNet to match your number of output classes
-        self.alexnet.classifier[6] = nn.Linear(4096, num_classes)
-
-    def forward(self, x):
-        # Apply data transformations
-        x = self.transform(x)
-        
-        # Forward pass through the AlexNet model
-        x = self.alexnet(x)
-        return x
+import numpy as np
+import torch.nn.functional as F
 
 class VideoCNN(nn.Module):
     def __init__(self, output_size, use_resnet=False, is_grayscale=True):
@@ -119,6 +102,36 @@ class VideoLSTM(nn.Module):
             c = torch.sum(c, dim=1) / seq_len
             return c, x
 
+        return x
+
+class Discriminator(nn.Module):
+    def __init__(self, input_size, image_height, color_channels=1):
+        super(Discriminator, self).__init__()
+        self.cnn = nn.Sequential(
+            # input is Z, going into a convolution
+            nn.ConvTranspose2d( input_size, image_height * 8, 4, 1, 0, bias=False),
+            nn.BatchNorm1d(image_height * 8),
+            nn.ReLU(True),
+            # state size. ``(ngf*8) x 4 x 4``
+            nn.ConvTranspose2d(image_height * 8, image_height * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm1d(image_height * 4),
+            nn.ReLU(True),
+            # state size. ``(ngf*4) x 8 x 8``
+            nn.ConvTranspose2d(image_height * 4, image_height * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm1d(image_height * 2),
+            nn.ReLU(True),
+            # state size. ``(ngf*2) x 16 x 16``
+            nn.ConvTranspose2d(image_height * 2, image_height, 4, 2, 1, bias=False),
+            nn.BatchNorm1d(image_height),
+            nn.ReLU(True),
+            # state size. ``(ngf) x 32 x 32``
+            nn.ConvTranspose2d(image_height, color_channels, 4, 2, 1, bias=False),
+            nn.Tanh()
+            # state size. ``(nc) x 64 x 64``
+        )
+
+    def forward(self, x):
+        x = self.cnn(x)
         return x
 
 
