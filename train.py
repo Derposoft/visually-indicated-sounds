@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model",
-        choices=["pocan", "foleygan", "vigclassification", "vigwave"],
+        choices=["pocan", "foleygan", "vig"],
         type=str,
         required=True,
     )
