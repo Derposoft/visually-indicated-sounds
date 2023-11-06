@@ -21,9 +21,9 @@ import librosa
 import torch.nn.functional as F
 
 
-class CustomFeatureExtractor(nn.Module):
+class CustomAlexnetFeatureExtractor(nn.Module):
     def __init__(self, input_channels=30):
-        super(CustomFeatureExtractor, self).__init__()
+        super(CustomAlexnetFeatureExtractor, self).__init__()
         self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=3, stride=2, padding=1)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
         # Add more layers as needed
@@ -65,7 +65,7 @@ class vig(nn.Module):
         self.frame_rate = frame_rate
 
         # Initialize custom feature extractor
-        self.feature_extractor = CustomFeatureExtractor(input_channels=30)
+        self.feature_extractor = CustomAlexnetFeatureExtractor(input_channels=30)
 
 
         # Initialize LSTM model
