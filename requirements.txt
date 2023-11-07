@@ -6,5 +6,4 @@ torchvision
 torchaudio
 tqdm
 moviepy
-librosa
 pytorch-pretrained-biggan
