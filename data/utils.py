@@ -153,9 +153,18 @@ def get_audio_waveform_by_video_id(
 
 
 def get_audio_features_by_video_id(
-    video_id: str, data_dir: str, model: str
+    video_id: str, data_dir: str, model: str, n_mels: int = 32
 ) -> torch.Tensor:
     """
+    :param video_id: ID of the youtube video
+    :param data_dir: Directory that this video is in
+    :param model: The type of model (passed in throught the CLI) for any model-specific
+        preprocessing (or lack thereof).
+    :param n_mels: The number of mel filterbanks to use when generating
+        the mel spectrogram. A too-high granularity can cause empty filterbank bins (lots of 0s)
+        which can bias models. A too-low granularity can reduce the quality of the input,
+        and also negatively affect models.
+
     Perform audio feature generation as described by "Visually Indicated Sounds", Owens et al.
     TODO different audio feature extraction for each model, if we have time
 
@@ -175,11 +184,13 @@ def get_audio_features_by_video_id(
         return waveform
 
     # Apply filter, compute envelope. Here we choose mel filterbank
-    mel_spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate)
+    mel_spectrogram = torchaudio.transforms.MelSpectrogram(
+        sample_rate=sample_rate, n_mels=n_mels
+    )
     spectrogram = mel_spectrogram(waveform)
     spectrogram_tensor = torch.log1p(spectrogram)
     spectrogram = spectrogram_tensor.numpy()
-    envelope = signal.hilbert(spectrogram, axis=0)
+    envelope = np.imag(signal.hilbert(spectrogram, axis=0))
     envelope = torch.Tensor(envelope)
 
     # Downsample and compress the envelopes
