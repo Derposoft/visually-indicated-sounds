@@ -5,7 +5,7 @@ import torch.optim as optim
 import data.utils as utils
 from models.pocan import POCAN
 from models.vig import VIG
-from models.foleygan import foleygan
+from models.foleygan import FoleyGAN
 
 
 def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         img_feature_dim = 64
         hidden_size = 20
         n_fft = num_classes
-        model = foleygan(img_feature_dim, num_classes, hidden_size, n_fft)
+        model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft)
         loss_function = nn.HingeEmbeddingLoss()
         opt = optim.Adam(model.parameters(), lr=0.0001)
     elif config.model == "pocan":

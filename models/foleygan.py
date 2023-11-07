@@ -15,11 +15,11 @@ from pytorch_pretrained_biggan import truncated_noise_sample
 
 
 # What is img_feature_dim? Height or width of images. Must receive square images (e.g. 64x64)
-class foleygan(nn.Module):
+class FoleyGAN(nn.Module):
     def __init__(
         self, img_feature_dim, num_class, hidden_size, n_fft, is_grayscale: bool = True
     ):
-        super(foleygan, self).__init__()
+        super(FoleyGAN, self).__init__()
         self.truncation = 0.4
         TWO_FRAME_TRN = 2
         MULTI_SCALE_NUM_FRAMES = 8
