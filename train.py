@@ -1,31 +1,19 @@
 import argparse
 import torch.nn as nn
 import torch.optim as optim
-import torch as tch
 
 import data.utils as utils
 from models.pocan import POCAN
-from models.vig import vig
+from models.vig import VIG
 from models.foleygan import foleygan
+
 
 def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
     for epoch in range(num_epochs):
         running_loss = 0.0
         for video_frames, audio_waves, labels in train_dataloader:
             opt.zero_grad()
-
-            print("video_frames.shape:", video_frames.shape)
-            #print("audio_waves.shape:", audio_waves.shape)
-
             outputs = model(video_frames, audio_waves)
-
-            print("outputs.shape:", outputs.shape)
-            #print("outputs:", outputs)
-            print("labels.shape:", labels.shape)
-            print("labels:", labels)
-            labels = tch.full((256,), 8)
-            print("labels:", labels)
-
 
             # Custom losses by model
             if isinstance(model, POCAN):
@@ -35,8 +23,6 @@ def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False)
             loss.backward()
             opt.step()
             running_loss += loss.item()
-
-            print(f"Current running loss: {running_loss}")
 
             if verbose:
                 print(f"Current running loss: {running_loss}")
@@ -110,28 +96,20 @@ if __name__ == "__main__":
         loss_function = nn.CrossEntropyLoss()
         opt = optim.SGD(model.parameters(), lr=0.01)
     elif config.model == "vig":
-
-        input_size = 256
         hidden_size = 64
         num_layers = 2
-        num_classes = 15
-
-        model = vig(num_classes, input_size, hidden_size, num_layers)
-
-        print(model)
-
+        model = VIG(hidden_size, num_layers, is_grayscale=grayscale)
         loss_function = nn.CrossEntropyLoss()
         opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
 
     # Train models
-    if config.model != "vig":
-        train(
-            model, train_dataloader, loss_function, opt, num_epochs=epochs, verbose=verbose
-        )
-    else:
-        train(
-            model, train_dataloader, loss_function, opt, num_epochs=10, verbose=verbose
-        )
-        #vig_train(model, num_epochs=10, frame_rate=30) #initial
+    train(
+        model,
+        train_dataloader,
+        loss_function,
+        opt,
+        num_epochs=epochs,
+        verbose=verbose,
+    )

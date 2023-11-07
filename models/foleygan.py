@@ -11,31 +11,32 @@ import torchaudio.transforms as audiotransforms
 import models.modules as modules
 from models.modules_biggan import BigGAN
 from models.modules_trn import RelationModuleMultiScale
-from pytorch_pretrained_biggan import (one_hot_from_names, truncated_noise_sample,
-                                       save_as_images, display_in_terminal)
+from pytorch_pretrained_biggan import truncated_noise_sample
+
 
 # What is img_feature_dim? Height or width of images. Must receive square images (e.g. 64x64)
 class foleygan(nn.Module):
     def __init__(
-        self, 
-        img_feature_dim,
-        num_class,
-        hidden_size,
-        n_fft,
-        is_grayscale: bool = True
-        ):
+        self, img_feature_dim, num_class, hidden_size, n_fft, is_grayscale: bool = True
+    ):
         super(foleygan, self).__init__()
         self.truncation = 0.4
         TWO_FRAME_TRN = 2
         MULTI_SCALE_NUM_FRAMES = 8
         MAX_NUM_FRAMES = 3
 
-        self.cnn = modules.VideoCNN(img_feature_dim, use_resnet=True, is_grayscale=is_grayscale)
-        
-        self.trn = RelationModuleMultiScale(img_feature_dim, num_frames=TWO_FRAME_TRN, num_class=num_class)
-        self.mtrn = RelationModuleMultiScale(img_feature_dim, num_frames=MULTI_SCALE_NUM_FRAMES, num_class=num_class)
+        self.cnn = modules.VideoCNN(
+            img_feature_dim, use_resnet=True, is_grayscale=is_grayscale
+        )
 
-        self.fc1 = nn.Linear(num_class, num_class) # Output of mtrn is size num_class
+        self.trn = RelationModuleMultiScale(
+            img_feature_dim, num_frames=TWO_FRAME_TRN, num_class=num_class
+        )
+        self.mtrn = RelationModuleMultiScale(
+            img_feature_dim, num_frames=MULTI_SCALE_NUM_FRAMES, num_class=num_class
+        )
+
+        self.fc1 = nn.Linear(num_class, num_class)  # Output of mtrn is size num_class
 
         self.spectrogram = audiotransforms.Spectrogram(n_fft)
 
@@ -60,7 +61,7 @@ class foleygan(nn.Module):
         x_biggan = self.biggan(noise_vector, x_class, self.truncation, x_spectrogram)
 
         x = self.istft(x_biggan)
-        
-        #x_discriminator = self.discriminator(x)
+
+        # x_discriminator = self.discriminator(x)
 
         return x

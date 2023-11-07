@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import torch
 import torch.nn as nn
 import math
@@ -37,7 +35,8 @@ class VideoCNN(nn.Module):
         x = x.permute(0, 1, 4, 2, 3)
         batch_size, n_frames, depth, height, width = x.shape
         x = x.reshape([-1, depth, height, width])
-        x = self.cnn(x)
+        with torch.no_grad():
+            x = self.cnn(x)
 
         # Separate batch and frames again and project to output size
         x = x.reshape([batch_size, n_frames, -1])
