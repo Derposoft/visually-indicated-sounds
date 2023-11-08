@@ -28,6 +28,7 @@ class FoleyGAN(nn.Module):
         MULTI_SCALE_NUM_FRAMES = 8
         GAN_OUTPUT_CHANNELS = 3
         NUM_FRAMES = 3
+        self.biggan_z_dim = biggan_z_dim
 
         self.cnn = modules.VideoCNN(
             img_feature_dim, use_resnet=True, is_grayscale=is_grayscale
@@ -41,8 +42,6 @@ class FoleyGAN(nn.Module):
             img_feature_dim, num_frames=MULTI_SCALE_NUM_FRAMES, num_class=num_class
         )
 
-        self.spectrogram = audiotransforms.Spectrogram(n_fft)
-        self.biggan_z_dim = biggan_z_dim
         self.biggan = BigGAN(
             hidden_size,
             NUM_FRAMES,
@@ -50,11 +49,8 @@ class FoleyGAN(nn.Module):
             z_dim=biggan_z_dim,
             gan_output_dim=GAN_OUTPUT_DIM,
         )
-        self.linear = nn.Linear(
-            GAN_OUTPUT_CHANNELS * GAN_OUTPUT_DIM**2, 2 * hidden_size
-        )
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
-        self.discriminator = modules.Discriminator(1, 50)
+        self.discriminator = modules.Discriminator(5800, 50)
 
         # Outputs to be saved for loss calculations
         self.x_pred = None
@@ -74,11 +70,10 @@ class FoleyGAN(nn.Module):
         # Create audio wave via istft
         x = x.permute(0, 2, 1)
         x = self.istft(x)
-        print("audiowave output", x.shape)
+        x = x.reshape([*x.shape, 1])  # (bs, seq_len, 1)
 
         self.x_pred = x
         self.x_discrim = self.discriminator(x)
-
         return x
 
     def loss(self, y, labels):
