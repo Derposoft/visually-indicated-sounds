@@ -9,6 +9,15 @@ from models.foleygan import FoleyGAN
 
 
 def train(model, train_dataloader, opt, num_epochs=10, verbose=False):
+    """
+    Trains the given model. Assumes that model is an nn.Module class, with a function
+    defined inside of it called "loss". Loss functions in models must look like:
+
+    def loss(outputs, labels, audio)
+
+    where outputs are model outputs, labels are sound class labels, and audio is the raw
+    audio for each video.
+    """
     for epoch in range(num_epochs):
         running_loss = 0.0
         for video_frames, audio, audio_raw, labels in train_dataloader:
@@ -77,7 +86,6 @@ if __name__ == "__main__":
         hidden_size = 20
         n_fft = 400
         model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft)
-        loss_function = nn.HingeEmbeddingLoss()
     elif config.model == "pocan":
         hidden_size = 5
         num_lstm_layers = 2

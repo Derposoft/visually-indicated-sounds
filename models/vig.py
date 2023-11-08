@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torchaudio.transforms as audiotransforms
 
-from models.modules import VideoCNN, VideoLSTM
+from models.modules import VideoCNN, VideoLSTM, calculate_audiowave_loss
 from data.utils import match_seq_len
 
 
@@ -41,9 +41,5 @@ class VIG(nn.Module):
         return x
 
     def loss(self, outputs: torch.Tensor, _: torch.Tensor, audiowaves: torch.Tensor):
-        print(outputs.shape)
-        print(audiowaves.shape)
-        outputs = match_seq_len(outputs, audiowaves)
-        l = self.loss_function(audiowaves, outputs)
-        l = torch.abs(l)
-        return l
+        # TODO ehsan
+        return calculate_audiowave_loss(audiowaves, outputs)

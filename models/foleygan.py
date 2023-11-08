@@ -26,7 +26,6 @@ class FoleyGAN(nn.Module):
         super(FoleyGAN, self).__init__()
         GAN_OUTPUT_DIM = 128
         MULTI_SCALE_NUM_FRAMES = 8
-        GAN_OUTPUT_CHANNELS = 3
         NUM_FRAMES = 3
         self.biggan_z_dim = biggan_z_dim
 
@@ -50,9 +49,11 @@ class FoleyGAN(nn.Module):
             gan_output_dim=GAN_OUTPUT_DIM,
         )
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
-        self.discriminator = modules.Discriminator(5800, 50)
+        self.discriminator = modules.Discriminator(5800, 50)  # TODO
 
         # Outputs to be saved for loss calculations
+        self.toggle_freeze_discriminator()
+        self.discrim_loss_fn = nn.BCELoss()
         self.x_pred = None
         self.x_discrim = None
 
@@ -76,5 +77,34 @@ class FoleyGAN(nn.Module):
         self.x_discrim = self.discriminator(x)
         return x
 
-    def loss(self, outputs, labels, audiowaves):
+    def toggle_freeze_generator(self):
         pass
+
+    def toggle_freeze_discriminator(self):
+        pass
+
+    def loss(self, outputs, labels, audiowaves):
+        """Function starts with discriminator frozen, generator unfrozen"""
+        batch_size, pred_seq_len = outputs.shape
+
+        # Train discriminator on negative and positive example
+        self.toggle_freeze_discriminator()
+        self.toggle_freeze_generator()
+
+        # Negative example
+        loss_discriminator = self.discrim_loss_fn(
+            self.x_discrim, torch.zeros((batch_size,))
+        )
+        loss_discriminator.backward()
+
+        # Positive example
+        x_discrim_raw = self.discriminator(audiowaves)
+        loss_discriminator = self.discrim_loss_fn(
+            x_discrim_raw, torch.ones((batch_size,))
+        )
+        loss_discriminator.backward()
+
+        self.toggle_freeze_discriminator()
+        self.toggle_freeze_generator()
+        loss_generator = modules.calculate_audiowave_loss(audiowaves, outputs)
+        return loss_generator

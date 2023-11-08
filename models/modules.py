@@ -3,6 +3,8 @@ import torch.nn as nn
 import math
 import torchvision.models as models
 
+from data.utils import match_seq_len
+
 
 class VideoCNN(nn.Module):
     def __init__(self, output_size, use_resnet=False, is_grayscale=True):
@@ -122,10 +124,30 @@ class Discriminator(nn.Module):
             nn.Tanh()
             # state size. ``(nc) x 64 x 64``
         )
+        self.linear = nn.Linear(64, 1)
 
     def forward(self, x):
+        batch_size = x.shape[0]
         x = self.cnn(x)
+        x = x.reshape(batch_size, -1)
+        x = self.linear(x)
         return x
+
+
+def calculate_audiowave_loss(y: torch.Tensor, y_preds: torch.Tensor) -> torch.Tensor:
+    """
+    :param y: audiowaves batch of shape (batch_size, audiowave_len)
+    :param y_pred: audiowave predictions batch of shape (batch_size, audiowave_preds_len)
+    :returns: The loss between the two audiowaves as a tensor
+    """
+    y_preds = match_seq_len(
+        torch.zeros([y.shape[1], 1]),
+        y_preds.reshape([y_preds.shape[0], y_preds.shape[1], 1]),
+    ).reshape(
+        [y_preds.shape[0], -1]
+    )  # match_seq_len was poorly thought out. oops.
+    loss = nn.SmoothL1Loss()(y, y_preds)
+    return torch.abs(loss)
 
 
 if __name__ == "__main__":
