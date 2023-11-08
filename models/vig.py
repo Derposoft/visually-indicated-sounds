@@ -3,6 +3,7 @@ import torch.nn as nn
 import torchaudio.transforms as audiotransforms
 
 from models.modules import VideoCNN, VideoLSTM
+from data.utils import match_seq_len
 
 
 class VIG(nn.Module):
@@ -22,6 +23,7 @@ class VIG(nn.Module):
             hidden_size, lstm_output_size, num_layers, video_fps=frame_rate
         )
         self.audiowave = audiotransforms.InverseSpectrogram(n_fft=n_fft)
+        self.loss_function = nn.SmoothL1Loss()
 
     def inverse_cochleagram_to_audio(self, cochleagram: torch.Tensor):
         # cochleagram shape: (batch_size, seq_len, hidden_size)
@@ -37,3 +39,11 @@ class VIG(nn.Module):
         x = torch.complex(x_real, x_imag)
         x = self.inverse_cochleagram_to_audio(x)
         return x
+
+    def loss(self, outputs: torch.Tensor, _: torch.Tensor, audiowaves: torch.Tensor):
+        print(outputs.shape)
+        print(audiowaves.shape)
+        outputs = match_seq_len(outputs, audiowaves)
+        l = self.loss_function(audiowaves, outputs)
+        l = torch.abs(l)
+        return l

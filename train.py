@@ -8,18 +8,15 @@ from models.vig import VIG
 from models.foleygan import FoleyGAN
 
 
-def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
+def train(model, train_dataloader, opt, num_epochs=10, verbose=False):
     for epoch in range(num_epochs):
         running_loss = 0.0
-        for video_frames, audio_waves, labels in train_dataloader:
+        for video_frames, audio, audio_raw, labels in train_dataloader:
             opt.zero_grad()
-            outputs = model(video_frames, audio_waves)
+            outputs = model(video_frames, audio)
 
             # Custom losses by model
-            if isinstance(model, POCAN):
-                loss = model.loss(labels, audio_waves)
-            else:
-                loss = criterion(outputs, labels)
+            loss = model.loss(outputs, labels, audio_raw)
             loss.backward()
             opt.step()
             running_loss += loss.item()
@@ -43,9 +40,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_train", default=10, type=int)
     parser.add_argument("--n_test", default=5, type=int)
     parser.add_argument("--epochs", default=10, type=int)
-    parser.add_argument(
-        "--batch_size", default=1, type=int
-    )  # testing value make sure is not 1
+    parser.add_argument("--batch_size", default=1, type=int)  # test val
+    parser.add_argument("--lr", default=1e-3, type=float)
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=64, type=int)
     parser.add_argument("--vid_width", default=64, type=int)
@@ -82,7 +78,6 @@ if __name__ == "__main__":
         n_fft = 400
         model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft)
         loss_function = nn.HingeEmbeddingLoss()
-        opt = optim.Adam(model.parameters(), lr=1e-6)
     elif config.model == "pocan":
         hidden_size = 5
         num_lstm_layers = 2
@@ -95,22 +90,18 @@ if __name__ == "__main__":
             hidden_size=hidden_size,
             num_lstm_layers=num_lstm_layers,
         )
-        loss_function = nn.CrossEntropyLoss()
-        opt = optim.SGD(model.parameters(), lr=0.01)
     elif config.model == "vig":
         hidden_size = 64
         num_layers = 2
         model = VIG(hidden_size, num_layers, is_grayscale=grayscale)
-        loss_function = nn.CrossEntropyLoss()
-        opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
+    opt = optim.Adam(model.parameters(), lr=config.lr)
 
     # Train models
     train(
         model,
         train_dataloader,
-        loss_function,
         opt,
         num_epochs=epochs,
         verbose=verbose,

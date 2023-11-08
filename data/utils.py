@@ -154,7 +154,7 @@ def get_audio_waveform_by_video_id(
 
 def get_audio_features_by_video_id(
     video_id: str, data_dir: str, model: str, n_mels: int = 32
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """
     :param video_id: ID of the youtube video
     :param data_dir: Directory that this video is in
@@ -200,7 +200,7 @@ def get_audio_features_by_video_id(
 
     # Output audio as (seq_len, feats) instead of (feats, seq_len)
     compressed_envelopes = compressed_envelopes.permute(1, 0)
-    return compressed_envelopes
+    return compressed_envelopes, waveform
 
 
 def video_id_to_dataset_id(video_id: str) -> int:
@@ -350,26 +350,32 @@ class VideoDataset(Dataset):
         video_class = video_annotations.get("class_id", default_class_id)
 
         # Load audio
-        audio = get_audio_features_by_video_id(video_id, self.data_dir, self.model)
-        return video_frames_tensor, audio, video_class
+        audio_preprocessed, audio_raw = get_audio_features_by_video_id(
+            video_id, self.data_dir, self.model
+        )
+        return video_frames_tensor, audio_preprocessed, audio_raw, video_class
 
 
 class VideoDatasetCollator:
-    def __call__(self, batch) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __call__(
+        self, batch
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Take incoming (video_frames_tensor, audio, video_class) and collates them.
+        Take incoming (video_frames_tensor, audio_preprocessed, audio_raw, video_class) and collates them.
         """
         # Collate video frames
         video_frames = [x[0] for x in batch]
         video_frames = torch.nn.utils.rnn.pad_sequence(video_frames, batch_first=True)
 
-        # Collate audio waveforms
-        audio_waves = [x[1] for x in batch]
-        audio_waves = torch.nn.utils.rnn.pad_sequence(audio_waves, batch_first=True)
+        # Collate audio waveforms (preprocessed and raw)
+        audio = [x[1] for x in batch]
+        audio = torch.nn.utils.rnn.pad_sequence(audio, batch_first=True)
+        audio_raw = [x[2] for x in batch]
+        audio_raw = torch.nn.utils.rnn.pad_sequence(audio_raw, batch_first=True)
 
         # Collate labels
-        labels = torch.LongTensor([x[2] for x in batch])
-        return video_frames, audio_waves, labels
+        labels = torch.LongTensor([x[3] for x in batch])
+        return video_frames, audio, audio_raw, labels
 
 
 @lru_cache(maxsize=None)

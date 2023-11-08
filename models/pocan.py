@@ -72,6 +72,7 @@ class POCAN(nn.Module):
 
     def loss(
         self,
+        _: torch.Tensor,
         c: torch.Tensor,
         y: torch.Tensor,
         lbda: float = 50.0,

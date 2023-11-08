@@ -76,5 +76,5 @@ class FoleyGAN(nn.Module):
         self.x_discrim = self.discriminator(x)
         return x
 
-    def loss(self, y, labels):
+    def loss(self, outputs, labels, audiowaves):
         pass
