@@ -197,6 +197,9 @@ def get_audio_features_by_video_id(
     downsampling = audiotransforms.Resample(orig_freq=sample_rate, new_freq=out_rate)
     downsampled_envelopes = downsampling(envelope)
     compressed_envelopes = torch.abs(downsampled_envelopes) ** compression_constant
+
+    # Output audio as (seq_len, feats) instead of (feats, seq_len)
+    compressed_envelopes = compressed_envelopes.permute(1, 0)
     return compressed_envelopes
 
 

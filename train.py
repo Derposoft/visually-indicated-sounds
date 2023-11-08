@@ -43,7 +43,9 @@ if __name__ == "__main__":
     parser.add_argument("--n_train", default=10, type=int)
     parser.add_argument("--n_test", default=5, type=int)
     parser.add_argument("--epochs", default=10, type=int)
-    parser.add_argument("--batch_size", default=1, type=int)  # testing value make sure is not 1
+    parser.add_argument(
+        "--batch_size", default=1, type=int
+    )  # testing value make sure is not 1
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=64, type=int)
     parser.add_argument("--vid_width", default=64, type=int)
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     if config.model == "foleygan":
         img_feature_dim = 64
         hidden_size = 20
-        n_fft = num_classes
+        n_fft = 400
         model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft)
         loss_function = nn.HingeEmbeddingLoss()
         opt = optim.Adam(model.parameters(), lr=1e-6)
