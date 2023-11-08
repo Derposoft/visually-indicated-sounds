@@ -1,16 +1,8 @@
-from __future__ import (absolute_import, division, print_function, unicode_literals)
-
-import os
-import logging
-import copy
-import json
-
 import torch
 import torch.nn as nn
 import math
 import torchvision.models as models
-import numpy as np
-import torch.nn.functional as F
+
 
 class VideoCNN(nn.Module):
     def __init__(self, output_size, use_resnet=False, is_grayscale=True):
@@ -104,12 +96,13 @@ class VideoLSTM(nn.Module):
 
         return x
 
+
 class Discriminator(nn.Module):
     def __init__(self, input_size, image_height, color_channels=1):
         super(Discriminator, self).__init__()
         self.cnn = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d( input_size, image_height * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(input_size, image_height * 8, 4, 1, 0, bias=False),
             nn.BatchNorm1d(image_height * 8),
             nn.ReLU(True),
             # state size. ``(ngf*8) x 4 x 4``

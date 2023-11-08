@@ -1,10 +1,11 @@
+import argparse
 import torch.nn as nn
 import torch.optim as optim
-import argparse
 
 import data.utils as utils
 from models.pocan import POCAN
-from models.foleygan import foleygan
+from models.vig import VIG
+from models.foleygan import FoleyGAN
 
 
 def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
@@ -34,7 +35,10 @@ if __name__ == "__main__":
     # Parse CLI arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model", choices=["pocan", "foleygan", "vig"], type=str, required=True
+        "--model",
+        choices=["pocan", "foleygan", "vig"],
+        type=str,
+        required=True,
     )
     parser.add_argument("--n_train", default=10, type=int)
     parser.add_argument("--n_test", default=5, type=int)
@@ -66,19 +70,17 @@ if __name__ == "__main__":
         frame_skip=frame_skip,
         grayscale=grayscale,
     )
-
-    # Train models
     annotations, class_map = utils.load_annotations_and_classmap()
     num_classes = len(class_map)
 
+    # Create models
     if config.model == "foleygan":
         img_feature_dim = 64
         hidden_size = 20
         n_fft = num_classes
-        model = foleygan(img_feature_dim, num_classes, hidden_size, n_fft)
+        model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft)
         loss_function = nn.HingeEmbeddingLoss()
         opt = optim.Adam(model.parameters(), lr=0.0001)
-
     elif config.model == "pocan":
         hidden_size = 5
         num_lstm_layers = 2
@@ -93,14 +95,21 @@ if __name__ == "__main__":
         )
         loss_function = nn.CrossEntropyLoss()
         opt = optim.SGD(model.parameters(), lr=0.01)
-
     elif config.model == "vig":
-        model = None  # TODO
+        hidden_size = 64
+        num_layers = 2
+        model = VIG(hidden_size, num_layers, is_grayscale=grayscale)
         loss_function = nn.CrossEntropyLoss()
         opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
 
+    # Train models
     train(
-        model, train_dataloader, loss_function, opt, num_epochs=epochs, verbose=verbose
+        model,
+        train_dataloader,
+        loss_function,
+        opt,
+        num_epochs=epochs,
+        verbose=verbose,
     )
