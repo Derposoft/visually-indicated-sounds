@@ -83,7 +83,7 @@ class FoleyGAN(nn.Module):
     def toggle_freeze_discriminator(self):
         pass
 
-    def loss(self, outputs, labels, audiowaves):
+    def loss(self, outputs, _, audiowaves):
         """Function starts with discriminator frozen, generator unfrozen"""
         batch_size, pred_seq_len = outputs.shape
 
