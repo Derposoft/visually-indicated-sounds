@@ -5,6 +5,9 @@ Network-Based Synchronous Sound Generation in Silent Videos".
 https://arxiv.org/pdf/2107.09262.pdf
 """
 
+import warnings
+warnings.filterwarnings('ignore')
+
 import torch
 import torch.nn as nn
 import torchaudio.transforms as audiotransforms
@@ -42,11 +45,15 @@ class FoleyGAN(nn.Module):
 
         self.biggan = BigGAN(hidden_size, MAX_NUM_FRAMES, n_fft)
 
+        self.linear = nn.Linear(3*128**2, 2*hidden_size)
+
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
 
         self.discriminator = modules.Discriminator(1, 50)
 
     def forward(self, x, _):
+        batch_size = x.shape[0]
+
         x_resnet50 = self.cnn(x)
 
         x_mtrn = self.mtrn(x_resnet50)
@@ -55,12 +62,21 @@ class FoleyGAN(nn.Module):
         x_spectrogram = self.spectrogram(x_trn)
         x_class = self.fc1(x_mtrn)
 
-        noise_vector = truncated_noise_sample(truncation=self.truncation, batch_size=1)
+        noise_vector = truncated_noise_sample(truncation=self.truncation, batch_size=batch_size)
         noise_vector = torch.from_numpy(noise_vector)
 
         x_biggan = self.biggan(noise_vector, x_class, self.truncation, x_spectrogram)
 
-        x = self.istft(x_biggan)
+        x_biggan = x_biggan.reshape([batch_size, -1])
+
+        print(x_biggan.shape)
+
+        x_linear = self.linear(x_biggan)
+
+        x_real, x_imag = x_linear.chunk(2, dim=-1)
+        x = torch.complex(x_real, x_imag)
+
+        x = self.istft(x)
 
         # x_discriminator = self.discriminator(x)
 

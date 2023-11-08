@@ -152,38 +152,42 @@ class GenBlock(nn.Module):
         self.drop_channels = (in_size != out_size)
         middle_size = in_size // reduction_factor
 
-        self.bn_0 = BigGANBatchNorm(in_size, condition_vector_dim, n_stats=n_stats, eps=eps, conditional=True)
+        #self.bn_0 = BigGANBatchNorm(in_size, condition_vector_dim, n_stats=n_stats, eps=eps, conditional=True)
+        self.bn_0 = nn.BatchNorm2d(in_size)
         self.conv_0 = snconv2d(in_channels=in_size, out_channels=middle_size, kernel_size=1, eps=eps)
 
-        self.bn_1 = BigGANBatchNorm(middle_size, condition_vector_dim, n_stats=n_stats, eps=eps, conditional=True)
+        #self.bn_1 = BigGANBatchNorm(middle_size, condition_vector_dim, n_stats=n_stats, eps=eps, conditional=True)
+        self.bn_1 = nn.BatchNorm2d(middle_size)
         self.conv_1 = snconv2d(in_channels=middle_size, out_channels=middle_size, kernel_size=3, padding=1, eps=eps)
 
-        self.bn_2 = BigGANBatchNorm(middle_size, condition_vector_dim, n_stats=n_stats, eps=eps, conditional=True)
+        #self.bn_2 = BigGANBatchNorm(middle_size, condition_vector_dim, n_stats=n_stats, eps=eps, conditional=True)
+        self.bn_2 = nn.BatchNorm2d(middle_size)
         self.conv_2 = snconv2d(in_channels=middle_size, out_channels=middle_size, kernel_size=3, padding=1, eps=eps)
 
-        self.bn_3 = BigGANBatchNorm(middle_size, condition_vector_dim, n_stats=n_stats, eps=eps, conditional=True)
+        #self.bn_3 = BigGANBatchNorm(middle_size, condition_vector_dim, n_stats=n_stats, eps=eps, conditional=True)
+        self.bn_3 = nn.BatchNorm2d(middle_size)
         self.conv_3 = snconv2d(in_channels=middle_size, out_channels=out_size, kernel_size=1, eps=eps)
-
         self.relu = nn.ReLU()
 
     def forward(self, x, cond_vector, truncation):
         x0 = x
 
-        x = self.bn_0(x, truncation, cond_vector)
+        x = self.bn_0(x)
+
         x = self.relu(x)
         x = self.conv_0(x)
 
-        x = self.bn_1(x, truncation, cond_vector)
+        x = self.bn_1(x)
         x = self.relu(x)
         if self.up_sample:
             x = F.interpolate(x, scale_factor=2, mode='nearest')
         x = self.conv_1(x)
 
-        x = self.bn_2(x, truncation, cond_vector)
+        x = self.bn_2(x)
         x = self.relu(x)
         x = self.conv_2(x)
 
-        x = self.bn_3(x, truncation, cond_vector)
+        x = self.bn_3(x)
         x = self.relu(x)
         x = self.conv_3(x)
 
@@ -229,15 +233,15 @@ class Generator(nn.Module):
         # We use this conversion step to be able to use TF weights:
         # TF convention on shape is [batch, height, width, channels]
         # PT convention on shape is [batch, channels, height, width]
-        z = z.view(-1, 16, 16, 1 * self.config.channel_width)
+        z = z.view(-1, 4, 4, 16 * self.config.channel_width)
         z = z.permute(0, 3, 1, 2).contiguous()
 
-        # for i, layer in enumerate(self.layers):
-        #     if isinstance(layer, GenBlock):
-        #         z = layer(z, cond_vector, truncation)
-        #     else:
-        #         z = layer(z)
-        #     print(z[0,0,0])
+        for i, layer in enumerate(self.layers):
+            if isinstance(layer, GenBlock):
+                z = layer(z, cond_vector, truncation)
+            else:
+                z = layer(z)
+            #print(z[0,0,0])
         
         z = self.bn(z, truncation)
         z = self.relu(z)
@@ -257,7 +261,6 @@ class BigGAN(nn.Module):
         self.embeddings = nn.Linear(config.num_classes, config.z_dim, bias=False)
         self.generator = Generator(config, hidden_size)
         self.linear = nn.Linear(n_frames*(n_fft//2 + 1), hidden_size)
-        self.maxpool = nn.MaxPool2d(2)
 
     def forward(self, z, class_label, truncation, spectrogram):
         assert 0 < truncation <= 1
@@ -268,10 +271,6 @@ class BigGAN(nn.Module):
 
         cond_vector = torch.cat((z, embed, spectrogram), dim=1)
         z = self.generator(cond_vector, truncation)
-
-        z = self.maxpool(z)
-
-        z = z.type(torch.complex64)
 
         return z
     
