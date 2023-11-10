@@ -78,10 +78,21 @@ class FoleyGAN(nn.Module):
         return x
 
     def toggle_freeze_generator(self):
-        pass
+        for param in self.cnn.parameters():
+            param.requires_grad = not(param.requires_grad)
+
+        for param in self.mtrn.parameters():
+            param.requires_grad = not(param.requires_grad)
+
+        for param in self.trn.parameters():
+            param.requires_grad = not(param.requires_grad)
+
+        for param in self.biggan.parameters():
+            param.requires_grad = not(param.requires_grad)
 
     def toggle_freeze_discriminator(self):
-        pass
+        for param in self.discriminator.parameters():
+            param.requires_grad = not(param.requires_grad)
 
     def loss(self, outputs, _, audiowaves):
         """Function starts with discriminator frozen, generator unfrozen"""
