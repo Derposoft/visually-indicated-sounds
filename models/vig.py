@@ -54,7 +54,5 @@ class VIG(nn.Module):
 
         loss = nn.MSELoss()
         output = loss(audiowaves, outputs)
-        
-        return output
 
-        #return calculate_audiowave_loss(audiowaves, outputs)
+        return output
