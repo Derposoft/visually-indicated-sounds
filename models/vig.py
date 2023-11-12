@@ -52,4 +52,9 @@ class VIG(nn.Module):
         #print("downsampled audiowaves.shape:", audiowaves_downsampled.shape)
         audiowaves = audiowaves_downsampled
 
-        return calculate_audiowave_loss(audiowaves, outputs)
+        loss = nn.MSELoss()
+        output = loss(audiowaves, outputs)
+        
+        return output
+
+        #return calculate_audiowave_loss(audiowaves, outputs)
