@@ -4,7 +4,7 @@ import torchaudio.transforms as audiotransforms
 
 from models.modules import VideoCNN, VideoLSTM, calculate_audiowave_loss
 from data.utils import match_seq_len
-
+import torch.nn.functional as F
 
 class VIG(nn.Module):
     def __init__(
@@ -41,5 +41,18 @@ class VIG(nn.Module):
         return x
 
     def loss(self, outputs: torch.Tensor, _: torch.Tensor, audiowaves: torch.Tensor):
-        # TODO ehsan
-        return calculate_audiowave_loss(audiowaves, outputs)
+
+        #print("outputs.shape:", outputs.shape)
+        #print("audiowaves.shape:", audiowaves.shape)
+
+        target_size = outputs.shape[1]
+        audiowaves_downsampled = F.interpolate(audiowaves.unsqueeze(1), size=target_size, mode='linear', align_corners=False)
+        audiowaves_downsampled = audiowaves_downsampled.squeeze(1)
+
+        #print("downsampled audiowaves.shape:", audiowaves_downsampled.shape)
+        audiowaves = audiowaves_downsampled
+
+        loss = nn.MSELoss()
+        output = loss(audiowaves, outputs)
+
+        return output
