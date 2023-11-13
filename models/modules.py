@@ -104,30 +104,31 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.cnn = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose1d(input_size, image_height * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose1d(input_size, image_height * 8, 2, 1, 0, bias=False),
             nn.BatchNorm1d(image_height * 8),
             nn.ReLU(True),
             # state size. ``(ngf*8) x 4 x 4``
-            nn.ConvTranspose1d(image_height * 8, image_height * 4, 4, 2, 1, bias=False),
+            nn.ConvTranspose1d(image_height * 8, image_height * 4, 2, 2, 1, bias=False),
             nn.BatchNorm1d(image_height * 4),
             nn.ReLU(True),
             # state size. ``(ngf*4) x 8 x 8``
-            nn.ConvTranspose1d(image_height * 4, image_height * 2, 4, 2, 1, bias=False),
+            nn.ConvTranspose1d(image_height * 4, image_height * 2, 2, 2, 1, bias=False),
             nn.BatchNorm1d(image_height * 2),
             nn.ReLU(True),
             # state size. ``(ngf*2) x 16 x 16``
-            nn.ConvTranspose1d(image_height * 2, image_height, 4, 2, 1, bias=False),
+            nn.ConvTranspose1d(image_height * 2, image_height, 2, 2, 1, bias=False),
             nn.BatchNorm1d(image_height),
             nn.ReLU(True),
             # state size. ``(ngf) x 32 x 32``
-            nn.ConvTranspose1d(image_height, color_channels, 4, 2, 1, bias=False),
+            nn.ConvTranspose1d(image_height, color_channels, 2, 2, 1, bias=False),
             nn.Tanh()
             # state size. ``(nc) x 64 x 64``
         )
-        self.linear = nn.Linear(64, 1)
+        self.linear = nn.Linear(18, 1)
 
     def forward(self, x):
         batch_size = x.shape[0]
+
         x = self.cnn(x)
         x = x.reshape(batch_size, -1)
         x = self.linear(x)
