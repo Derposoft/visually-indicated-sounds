@@ -6,6 +6,7 @@ https://arxiv.org/pdf/2107.09262.pdf
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchaudio.transforms as audiotransforms
 import models.modules as modules
 from models.modules_biggan import BigGAN
@@ -28,7 +29,7 @@ class FoleyGAN(nn.Module):
         GAN_OUTPUT_DIM = 128
         MULTI_SCALE_NUM_FRAMES = 8
         NUM_FRAMES = 3
-        SEQUENCE_LENGTH = int(6030/batch_size)
+        self.sequence_length = int(6030/batch_size)
         self.n_fft = n_fft
         self.biggan_z_dim = biggan_z_dim
 
@@ -53,7 +54,7 @@ class FoleyGAN(nn.Module):
         )
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
         self.stft = audiotransforms.Spectrogram(n_fft)
-        self.discriminator = modules.Discriminator(SEQUENCE_LENGTH, 50)
+        self.discriminator = modules.Discriminator(self.sequence_length, 50)
 
         # Outputs to be saved for loss calculations
         self.toggle_freeze_discriminator()
@@ -117,7 +118,12 @@ class FoleyGAN(nn.Module):
         loss_discriminator.backward()
 
         # Positive example
-        spectrogram = self.stft(audiowaves)
+        target_size = self.sequence_length
+        audiowaves_downsampled = F.interpolate(audiowaves.unsqueeze(1), size=target_size, mode='linear', align_corners=False)
+        audiowaves_downsampled = audiowaves_downsampled.squeeze(1)
+        print(audiowaves_downsampled.shape)
+        spectrogram = self.stft(audiowaves_downsampled)
+        print(spectrogram.shape)
         spectrogram = spectrogram.reshape([spectrogram.shape[0], -1])
         spectrogram = spectrogram[:, :, None]
         spectrogram = spectrogram.permute(2, 1, 0)
