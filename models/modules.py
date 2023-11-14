@@ -124,7 +124,7 @@ class Discriminator(nn.Module):
             nn.Tanh()
             # state size. ``(nc) x 64 x 64``
         )
-        self.linear = nn.Linear(18, 1)
+        self.linear = nn.Linear(2, 1)
 
     def forward(self, x):
         batch_size = x.shape[0]
