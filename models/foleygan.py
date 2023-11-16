@@ -138,5 +138,4 @@ class FoleyGAN(nn.Module):
         self.toggle_freeze_discriminator()
         self.toggle_freeze_generator()
         loss_generator = 1 - loss_discrim
-        loss_generator.backward()
         return loss_generator
