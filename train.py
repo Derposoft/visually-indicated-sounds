@@ -1,9 +1,11 @@
+import argparse
 import torch.nn as nn
 import torch.optim as optim
-import argparse
 
 import data.utils as utils
 from models.pocan import POCAN
+from models.vig import VIG
+from models.foleygan import FoleyGAN
 
 
 def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
@@ -33,15 +35,18 @@ if __name__ == "__main__":
     # Parse CLI arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model", choices=["pocan", "foleygan", "vig"], type=str, required=True
+        "--model",
+        choices=["pocan", "foleygan", "vig"],
+        type=str,
+        required=True,
     )
-    parser.add_argument("--n_train", default=1000, type=int)
-    parser.add_argument("--n_test", default=200, type=int)
+    parser.add_argument("--n_train", default=10, type=int)
+    parser.add_argument("--n_test", default=5, type=int)
     parser.add_argument("--epochs", default=10, type=int)
     parser.add_argument("--batch_size", default=1, type=int)  # testing value
     parser.add_argument("--frame_skip", default=10, type=int)
-    parser.add_argument("--vid_height", default=240, type=int)
-    parser.add_argument("--vid_width", default=360, type=int)
+    parser.add_argument("--vid_height", default=64, type=int)
+    parser.add_argument("--vid_width", default=64, type=int)
     parser.add_argument("--no_grayscale", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     config = parser.parse_args()
@@ -65,14 +70,19 @@ if __name__ == "__main__":
         frame_skip=frame_skip,
         grayscale=grayscale,
     )
-
-    # Train models
     annotations, class_map = utils.load_annotations_and_classmap()
     num_classes = len(class_map)
+
+    # Create models
     if config.model == "foleygan":
-        model = None  # TODO
-    elif config.model == "pocan":
+        img_feature_dim = 64
         hidden_size = 20
+        n_fft = num_classes
+        model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft)
+        loss_function = nn.HingeEmbeddingLoss()
+        opt = optim.Adam(model.parameters(), lr=0.0001)
+    elif config.model == "pocan":
+        hidden_size = 5
         num_lstm_layers = 2
         model = POCAN(
             num_classes,
@@ -83,12 +93,23 @@ if __name__ == "__main__":
             hidden_size=hidden_size,
             num_lstm_layers=num_lstm_layers,
         )
+        loss_function = nn.CrossEntropyLoss()
+        opt = optim.SGD(model.parameters(), lr=0.01)
     elif config.model == "vig":
-        model = None  # TODO
+        hidden_size = 64
+        num_layers = 2
+        model = VIG(hidden_size, num_layers, is_grayscale=grayscale)
+        loss_function = nn.CrossEntropyLoss()
+        opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
-    loss_function = nn.CrossEntropyLoss()
-    opt = optim.SGD(model.parameters(), lr=0.01)
+
+    # Train models
     train(
-        model, train_dataloader, loss_function, opt, num_epochs=epochs, verbose=verbose
+        model,
+        train_dataloader,
+        loss_function,
+        opt,
+        num_epochs=epochs,
+        verbose=verbose,
     )
