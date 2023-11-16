@@ -132,7 +132,7 @@ class FoleyGAN(nn.Module):
             self.x_discrim, torch.zeros((batch_size, 1))
         )
         loss_discrim = loss_discrim_pos + loss_discrim_neg
-        loss_discrim.backward()
+        loss_discrim.backward(retain_graph=True)
 
         # Generator output
         self.toggle_freeze_discriminator()
