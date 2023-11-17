@@ -72,6 +72,7 @@ class POCAN(nn.Module):
 
     def loss(
         self,
+        _: torch.Tensor,
         c: torch.Tensor,
         y: torch.Tensor,
         lbda: float = 50.0,
@@ -96,13 +97,6 @@ class POCAN(nn.Module):
 
         # Perceptual loss
         y_hat = self.synthesize_audiowave(sp)
-        y_hat = match_seq_len(
-            torch.zeros([y.shape[1], 1]),
-            y_hat.reshape([y_hat.shape[0], y_hat.shape[1], 1]),
-        ).reshape(
-            [y_hat.shape[0], -1]
-        )  # match_seq_len was poorly thought out. oops.
-        loss_p = self.smooth_l1_loss(y, y_hat)
-        loss_p = torch.abs(loss_p)
+        loss_p = modules.calculate_audiowave_loss(y, y_hat)
 
         return loss_cls + lbda * loss_reg + mu * loss_p

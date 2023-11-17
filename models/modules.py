@@ -3,6 +3,8 @@ import torch.nn as nn
 import math
 import torchvision.models as models
 
+from data.utils import match_seq_len
+
 
 class VideoCNN(nn.Module):
     def __init__(self, output_size, use_resnet=False, is_grayscale=True):
@@ -102,30 +104,51 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.cnn = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d(input_size, image_height * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose1d(input_size, image_height * 8, 2, 1, 0, bias=False),
             nn.BatchNorm1d(image_height * 8),
             nn.ReLU(True),
             # state size. ``(ngf*8) x 4 x 4``
-            nn.ConvTranspose2d(image_height * 8, image_height * 4, 4, 2, 1, bias=False),
+            nn.ConvTranspose1d(image_height * 8, image_height * 4, 2, 2, 1, bias=False),
             nn.BatchNorm1d(image_height * 4),
             nn.ReLU(True),
             # state size. ``(ngf*4) x 8 x 8``
-            nn.ConvTranspose2d(image_height * 4, image_height * 2, 4, 2, 1, bias=False),
+            nn.ConvTranspose1d(image_height * 4, image_height * 2, 2, 2, 1, bias=False),
             nn.BatchNorm1d(image_height * 2),
             nn.ReLU(True),
             # state size. ``(ngf*2) x 16 x 16``
-            nn.ConvTranspose2d(image_height * 2, image_height, 4, 2, 1, bias=False),
+            nn.ConvTranspose1d(image_height * 2, image_height, 2, 2, 1, bias=False),
             nn.BatchNorm1d(image_height),
             nn.ReLU(True),
             # state size. ``(ngf) x 32 x 32``
-            nn.ConvTranspose2d(image_height, color_channels, 4, 2, 1, bias=False),
+            nn.ConvTranspose1d(image_height, color_channels, 2, 2, 1, bias=False),
             nn.Tanh()
             # state size. ``(nc) x 64 x 64``
         )
+        self.linear = nn.Linear(2, 1)
 
     def forward(self, x):
+        batch_size = x.shape[0]
+
         x = self.cnn(x)
+        x = x.reshape(batch_size, -1)
+        x = self.linear(x)
         return x
+
+
+def calculate_audiowave_loss(y: torch.Tensor, y_preds: torch.Tensor) -> torch.Tensor:
+    """
+    :param y: audiowaves batch of shape (batch_size, audiowave_len)
+    :param y_pred: audiowave predictions batch of shape (batch_size, audiowave_preds_len)
+    :returns: The loss between the two audiowaves as a tensor
+    """
+    y_preds = match_seq_len(
+        torch.zeros([y.shape[1], 1]),
+        y_preds.reshape([y_preds.shape[0], y_preds.shape[1], 1]),
+    ).reshape(
+        [y_preds.shape[0], -1]
+    )  # match_seq_len was poorly thought out. oops.
+    loss = nn.SmoothL1Loss()(y, y_preds)
+    return torch.abs(loss)
 
 
 if __name__ == "__main__":
