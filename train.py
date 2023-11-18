@@ -6,9 +6,10 @@ import data.utils as utils
 from models.pocan import POCAN
 from models.vig import VIG
 from models.foleygan import FoleyGAN
+from models.modules import calculate_audiowave_loss
 
 
-def train(model, train_dataloader, opt, num_epochs=10, verbose=False):
+def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=False):
     """
     Trains the given model. Assumes that model is an nn.Module class, with a function
     defined inside of it called "loss". Loss functions in models must look like:
@@ -32,9 +33,25 @@ def train(model, train_dataloader, opt, num_epochs=10, verbose=False):
 
             if verbose:
                 print(f"Current running loss: {running_loss}")
+            
+        test(model, test_dataloader)
 
         average_loss = running_loss / len(train_dataloader)
-        print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss:.4f}")
+        print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss}")
+
+def test(model, test_dataloader):
+    """
+    Tests the given model.
+    """
+    total_mse = 0
+    for video_frames, audio, audio_raw, labels in test_dataloader:
+        outputs = model(video_frames, audio)
+        total_mse += calculate_audiowave_loss(audio_raw, outputs)
+    
+    average_mse = total_mse/len(test_dataloader)
+    
+    print(f"Total MSE: [{total_mse}]; Average MSE: [{average_mse}]")
+
 
 
 if __name__ == "__main__":
@@ -110,6 +127,7 @@ if __name__ == "__main__":
     train(
         model,
         train_dataloader,
+        test_dataloader,
         opt,
         num_epochs=epochs,
         verbose=verbose,
