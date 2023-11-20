@@ -18,7 +18,7 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s: %(message)s", level=log
 
 
 class Diffusion:
-    def __init__(self, noise_steps=1000, beta_start=1e-4, beta_end=0.02, img_size=256, device="cuda"):
+    def __init__(self, noise_steps=1000, beta_start=1e-4, beta_end=0.02, img_size=256, device="cpu"):
         self.noise_steps = noise_steps
         self.beta_start = beta_start
         self.beta_end = beta_end
@@ -32,7 +32,7 @@ class Diffusion:
     def prepare_noise_schedule(self):
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
 
-    def noise_images(self, x, t):
+    def noise_images(self, x, t): # TODO: MAKE NOISE_VIDEOS
         sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t])[:, None, None, None]
         sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[:, None, None, None]
         Ɛ = torch.randn_like(x)
@@ -81,7 +81,7 @@ def train(args):
         for i, (images, _) in enumerate(pbar):
             images = images.to(device)
             t = diffusion.sample_timesteps(images.shape[0]).to(device)
-            x_t, noise = diffusion.noise_images(images, t)
+            x_t, noise = diffusion.noise_images(images, t) # TODO: MAKE NOISE_VIDEOS
             predicted_noise = model(x_t, t)
             loss = mse(noise, predicted_noise)
 
@@ -104,9 +104,9 @@ def launch():
     args.run_name = "DDPM_Uncondtional"
     args.epochs = 500
     args.batch_size = 12
-    args.image_size = 64
+    args.image_size = 64 #TODO: HANGE TO HIDDEN SIZE??
     args.dataset_path = r"C:\Users\dome\datasets\landscape_img_folder"
-    args.device = "cuda"
+    args.device = "cpu"
     args.lr = 3e-4
     train(args)
 
@@ -146,7 +146,7 @@ def setup_logging(run_name):
 
 if __name__ == '__main__':
     launch()
-    # device = "cuda"
+    # device = "cpu"
     # model = UNet().to(device)
     # ckpt = torch.load("./working/orig/ckpt.pt")
     # model.load_state_dict(ckpt)

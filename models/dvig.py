@@ -28,7 +28,7 @@ class DiffusionVIG(nn.Module):
             hidden_size, use_resnet=use_resnet, is_grayscale=is_grayscale
         )
         self.lstm = modules.VideoLSTM(hidden_size, hidden_size, num_lstm_layers)
-        self.unet = UNet()
+        self.unet = UNet(hidden_size, hidden_size) # TODO: MAYBE NO NEED TO INCLUDE, JUST PIPE HIDDEN LAYER LSTM OUTPUT TO DIFFUSION
         self.audiowave = audiotransforms.InverseSpectrogram(n_fft=n_fft)
         self.num_timesteps = num_diffusion_timesteps
 
@@ -44,14 +44,14 @@ class DiffusionVIG(nn.Module):
         # Pass into UNet:
         x = self.unet(x)
 
-        # Run through diffusion process (MAY NOT USE)
+        # TODO: Run through diffusion process (MAY NOT USE)
         spectrogram = self.diffusion_process(x)
         audio_waveform = self.synthesize_audiowave(spectrogram)
         print(audio_waveform.shape)
         sys.exit()
         return audio_waveform
 
-    def diffusion_process(self, h: torch.Tensor, beta: float = 0.5):
+    def diffusion_process(self, h: torch.Tensor, beta: float = 0.5): # TODO: MAY NOT USE
         """
         :param h: (batch_size, self.hidden_size) set of hidden states for the batch
         """
