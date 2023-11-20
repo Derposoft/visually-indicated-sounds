@@ -8,6 +8,7 @@ import torch.nn as nn
 import torchaudio.transforms as audiotransforms
 
 import models.modules as modules
+from models.modules_diffusion import UNet
 
 
 class DiffusionVIG(nn.Module):
@@ -27,6 +28,7 @@ class DiffusionVIG(nn.Module):
             hidden_size, use_resnet=use_resnet, is_grayscale=is_grayscale
         )
         self.lstm = modules.VideoLSTM(hidden_size, hidden_size, num_lstm_layers)
+        self.unet = UNet()
         self.audiowave = audiotransforms.InverseSpectrogram(n_fft=n_fft)
         self.num_timesteps = num_diffusion_timesteps
 
@@ -39,7 +41,10 @@ class DiffusionVIG(nn.Module):
         x = self.cnn(x)
         x = self.lstm(x)
 
-        # Run through diffusion process
+        # Pass into UNet:
+        x = self.unet(x)
+
+        # Run through diffusion process (MAY NOT USE)
         spectrogram = self.diffusion_process(x)
         audio_waveform = self.synthesize_audiowave(spectrogram)
         print(audio_waveform.shape)
