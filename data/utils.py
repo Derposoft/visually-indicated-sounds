@@ -311,10 +311,11 @@ class VideoDataset(Dataset):
         data_dir: str = os.path.join(os.path.dirname(__file__), "./vig"),
         transform: bool = None,
         frame_skip: int = 10,
+        length: int = 10,
     ):
         self.model = model
         self.data_dir = data_dir
-        self.video_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")]
+        self.video_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")][:length]
         self.transform = transform
         self.frame_skip = frame_skip
         self.annotations, self.class_map = load_annotations_and_classmap()
@@ -411,6 +412,8 @@ def load_data(
     vid_width=360,
     frame_skip=10,
     grayscale=True,
+    n_train_videos=10,
+    n_test_videos=5,
 ) -> tuple[DataLoader, DataLoader]:
     train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
     test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
@@ -421,6 +424,7 @@ def load_data(
             height=vid_height, width=vid_width, grayscale=grayscale
         ),
         frame_skip=frame_skip,
+        length=n_train_videos,
     )
     test_dataset = VideoDataset(
         model,
@@ -429,6 +433,7 @@ def load_data(
             height=vid_height, width=vid_width, grayscale=grayscale
         ),
         frame_skip=frame_skip,
+        length=n_test_videos,
     )
     train_dataloader = DataLoader(
         train_dataset,

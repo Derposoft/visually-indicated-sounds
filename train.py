@@ -93,6 +93,8 @@ if __name__ == "__main__":
         vid_width=vid_width,
         frame_skip=frame_skip,
         grayscale=grayscale,
+        n_train_videos=n_train,
+        n_test_videos=n_test,
     )
     annotations, class_map = utils.load_annotations_and_classmap()
     num_classes = len(class_map)
