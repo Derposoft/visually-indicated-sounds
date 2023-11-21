@@ -29,7 +29,7 @@ def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False)
                 print(f"Current running loss: {running_loss}")
 
         average_loss = running_loss / len(train_dataloader)
-        print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss:.4f}")
+        print(f"---------------------------------Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss:.4f}")
 
 
 if __name__ == "__main__":

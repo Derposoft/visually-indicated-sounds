@@ -8,7 +8,6 @@ import torch.nn as nn
 import torchaudio.transforms as audiotransforms
 
 import models.modules as modules
-from models.modules_unet import UNet
 from models.modules_diffusion import Diffusion
 
 
@@ -24,12 +23,17 @@ class DiffusionVIG(nn.Module):
         device = "cpu"
     ):
         super(DiffusionVIG, self).__init__()
+        if n_fft % 2 == 1:
+            n_fft += 1
+        lstm_hidden_size = int(n_fft / 2) + 1
+        lstm_output_size = 2 * lstm_hidden_size  # x2 since we fold it as complex tensor
+
         self.cnn = modules.VideoCNN(
             hidden_size, use_resnet=use_resnet, is_grayscale=is_grayscale
         )
-        self.lstm = modules.VideoLSTM(hidden_size, hidden_size, num_lstm_layers)
+        self.lstm = modules.VideoLSTM(lstm_hidden_size, lstm_output_size, num_lstm_layers)
 
-        self.diffusion = Diffusion(img_size=hidden_size, device=device)
+        self.diffusion = Diffusion(img_size=lstm_output_size, device=device)
         
         self.istft = audiotransforms.InverseSpectrogram(n_fft=n_fft)
         self.num_timesteps = num_diffusion_timesteps
@@ -39,7 +43,6 @@ class DiffusionVIG(nn.Module):
         :param x: (batch_size, seq_len, height, width) video frames
         :param _: unused audio waveforms
         """
-
         t = self.diffusion.sample_timesteps(x.shape[0])
         x, noise = self.diffusion.noise_images(x, t) # TODO: MAKE NOISE_VIDEOS
 
