@@ -20,6 +20,7 @@ class DiffusionVIG(nn.Module):
         num_lstm_layers: int = 2,
         num_diffusion_timesteps: int = 5,
         n_fft: int = 400,
+        noise_steps = 20,
         device = "cpu"
     ):
         super(DiffusionVIG, self).__init__()
@@ -27,13 +28,14 @@ class DiffusionVIG(nn.Module):
             n_fft += 1
         lstm_hidden_size = int(n_fft / 2) + 1
         lstm_output_size = 2 * lstm_hidden_size  # x2 since we fold it as complex tensor
+        diffusion_size = 2 * int(n_fft / 2)
 
         self.cnn = modules.VideoCNN(
             hidden_size, use_resnet=use_resnet, is_grayscale=is_grayscale
         )
         self.lstm = modules.VideoLSTM(lstm_hidden_size, lstm_output_size, num_lstm_layers)
 
-        self.diffusion = Diffusion(img_size=lstm_output_size, device=device)
+        self.diffusion = Diffusion(img_size=diffusion_size, noise_steps=noise_steps, device=device)
         
         self.istft = audiotransforms.InverseSpectrogram(n_fft=n_fft)
         self.num_timesteps = num_diffusion_timesteps

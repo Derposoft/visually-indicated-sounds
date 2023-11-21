@@ -28,6 +28,12 @@ def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False)
             if verbose:
                 print(f"Current running loss: {running_loss}")
 
+        if isinstance(model, DiffusionVIG):
+            print("****************************************************************")
+            print(video_frames.shape)
+            print(video_frames.shape[0])
+            sampled_images = model.diffusion.sample(model, n=video_frames.shape[0])
+        
         average_loss = running_loss / len(train_dataloader)
         print(f"---------------------------------Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss:.4f}")
 
@@ -108,7 +114,8 @@ if __name__ == "__main__":
     elif config.model == "dvig":
         hidden_size = 64
         num_layers = 2
-        model = DiffusionVIG(hidden_size=hidden_size, num_lstm_layers=num_layers)
+        noise_steps = 20
+        model = DiffusionVIG(hidden_size=hidden_size, num_lstm_layers=num_layers, noise_steps=noise_steps)
         loss_function = nn.CrossEntropyLoss()
         opt = optim.SGD(model.parameters(), lr=0.01)
 
