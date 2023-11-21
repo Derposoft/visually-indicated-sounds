@@ -20,8 +20,8 @@ class DiffusionVIG(nn.Module):
         num_lstm_layers: int = 2,
         num_diffusion_timesteps: int = 5,
         n_fft: int = 400,
-        noise_steps = 20,
-        device = "cpu"
+        noise_steps=20,
+        device="cpu",
     ):
         super(DiffusionVIG, self).__init__()
         if n_fft % 2 == 1:
@@ -33,10 +33,14 @@ class DiffusionVIG(nn.Module):
         self.cnn = modules.VideoCNN(
             hidden_size, use_resnet=use_resnet, is_grayscale=is_grayscale
         )
-        self.lstm = modules.VideoLSTM(lstm_hidden_size, lstm_output_size, num_lstm_layers)
+        self.lstm = modules.VideoLSTM(
+            lstm_hidden_size, lstm_output_size, num_lstm_layers
+        )
 
-        self.diffusion = Diffusion(img_size=diffusion_size, noise_steps=noise_steps, device=device)
-        
+        self.diffusion = Diffusion(
+            img_size=diffusion_size, noise_steps=noise_steps, device=device
+        )
+
         self.istft = audiotransforms.InverseSpectrogram(n_fft=n_fft)
         self.num_timesteps = num_diffusion_timesteps
 
@@ -46,7 +50,7 @@ class DiffusionVIG(nn.Module):
         :param _: unused audio waveforms
         """
         t = self.diffusion.sample_timesteps(x.shape[0])
-        x, noise = self.diffusion.noise_images(x, t) # TODO: MAKE NOISE_VIDEOS
+        x, noise = self.diffusion.noise_images(x, t)  # TODO: MAKE NOISE_VIDEOS
 
         # Fetch final hidden state after running video through cnn+lstm
         x = self.cnn(x)

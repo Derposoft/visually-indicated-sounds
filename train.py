@@ -7,20 +7,27 @@ from models.pocan import POCAN
 from models.vig import VIG
 from models.foleygan import FoleyGAN
 from models.dvig import DiffusionVIG
+from models.modules import calculate_audiowave_loss
 
 
-def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
+def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=False):
+    """
+    Trains the given model. Assumes that model is an nn.Module class, with a function
+    defined inside of it called "loss". Loss functions in models must look like:
+
+    def loss(outputs, labels, audio)
+
+    where outputs are model outputs, labels are sound class labels, and audio is the raw
+    audio for each video.
+    """
     for epoch in range(num_epochs):
         running_loss = 0.0
-        for video_frames, audio_waves, labels in train_dataloader:
+        for video_frames, audio, audio_raw, labels in train_dataloader:
             opt.zero_grad()
-            outputs = model(video_frames, audio_waves)
+            outputs = model(video_frames, audio)
 
             # Custom losses by model
-            if isinstance(model, POCAN):
-                loss = model.loss(labels, audio_waves)
-            else:
-                loss = criterion(outputs, labels)
+            loss = model.loss(outputs, labels, audio_raw)
             loss.backward()
             opt.step()
             running_loss += loss.item()
@@ -28,14 +35,32 @@ def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False)
             if verbose:
                 print(f"Current running loss: {running_loss}")
 
+        test(model, test_dataloader)
+
         if isinstance(model, DiffusionVIG):
             print("****************************************************************")
             print(video_frames.shape)
             print(video_frames.shape[0])
             sampled_images = model.diffusion.sample(model, n=video_frames.shape[0])
-        
+
         average_loss = running_loss / len(train_dataloader)
-        print(f"---------------------------------Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss:.4f}")
+        print(
+            f"---------------------------------Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss}"
+        )
+
+
+def test(model, test_dataloader):
+    """
+    Tests the given model.
+    """
+    total_mse = 0
+    for video_frames, audio, audio_raw, labels in test_dataloader:
+        outputs = model(video_frames, audio)
+        total_mse += calculate_audiowave_loss(audio_raw, outputs)
+
+    average_mse = total_mse / len(test_dataloader)
+
+    print(f"Total MSE: [{total_mse}]; Average MSE: [{average_mse}]")
 
 
 if __name__ == "__main__":
@@ -50,7 +75,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_train", default=10, type=int)
     parser.add_argument("--n_test", default=5, type=int)
     parser.add_argument("--epochs", default=10, type=int)
-    parser.add_argument("--batch_size", default=1, type=int)  # testing value
+    parser.add_argument("--batch_size", default=1, type=int)  # test val
+    parser.add_argument("--lr", default=1e-3, type=float)
     parser.add_argument("--frame_skip", default=10, type=int)
     parser.add_argument("--vid_height", default=64, type=int)
     parser.add_argument("--vid_width", default=64, type=int)
@@ -84,11 +110,8 @@ if __name__ == "__main__":
     if config.model == "foleygan":
         img_feature_dim = 64
         hidden_size = 20
-        n_fft = num_classes
-        model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft)
-        loss_function = nn.HingeEmbeddingLoss()
-        opt = optim.Adam(model.parameters(), lr=0.0001)
-    
+        n_fft = 400
+        model = FoleyGAN(img_feature_dim, num_classes, hidden_size, batch_size, n_fft)
     elif config.model == "pocan":
         hidden_size = 5
         num_lstm_layers = 2
@@ -101,31 +124,28 @@ if __name__ == "__main__":
             hidden_size=hidden_size,
             num_lstm_layers=num_lstm_layers,
         )
-        loss_function = nn.CrossEntropyLoss()
-        opt = optim.SGD(model.parameters(), lr=0.01)
-    
     elif config.model == "vig":
         hidden_size = 64
         num_layers = 2
         model = VIG(hidden_size, num_layers, is_grayscale=grayscale)
-        loss_function = nn.CrossEntropyLoss()
-        opt = optim.SGD(model.parameters(), lr=0.01)
-
     elif config.model == "dvig":
         hidden_size = 64
         num_layers = 2
         noise_steps = 20
-        model = DiffusionVIG(hidden_size=hidden_size, num_lstm_layers=num_layers, noise_steps=noise_steps)
+        model = DiffusionVIG(
+            hidden_size=hidden_size, num_lstm_layers=num_layers, noise_steps=noise_steps
+        )
         loss_function = nn.CrossEntropyLoss()
         opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
+    opt = optim.Adam(model.parameters(), lr=config.lr)
 
     # Train models
     train(
         model,
         train_dataloader,
-        loss_function,
+        test_dataloader,
         opt,
         num_epochs=epochs,
         verbose=verbose,

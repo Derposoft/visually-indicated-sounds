@@ -3,10 +3,22 @@ import logging
 import torch
 from tqdm import tqdm
 
-logging.basicConfig(format="%(asctime)s - %(levelname)s: %(message)s", level=logging.INFO, datefmt="%I:%M:%S")
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s: %(message)s",
+    level=logging.INFO,
+    datefmt="%I:%M:%S",
+)
+
 
 class Diffusion:
-    def __init__(self, noise_steps=1000, beta_start=1e-4, beta_end=0.02, img_size=256, device="cpu"):
+    def __init__(
+        self,
+        noise_steps=1000,
+        beta_start=1e-4,
+        beta_end=0.02,
+        img_size=256,
+        device="cpu",
+    ):
         self.noise_steps = noise_steps
         self.beta_start = beta_start
         self.beta_end = beta_end
@@ -14,15 +26,17 @@ class Diffusion:
         self.device = device
 
         self.beta = self.prepare_noise_schedule().to(device)
-        self.alpha = 1. - self.beta
+        self.alpha = 1.0 - self.beta
         self.alpha_hat = torch.cumprod(self.alpha, dim=0)
 
     def prepare_noise_schedule(self):
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
 
-    def noise_images(self, x, t): # TODO: MAKE NOISE_VIDEOS
+    def noise_images(self, x, t):  # TODO: MAKE NOISE_VIDEOS
         sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t])[:, None, None, None]
-        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[:, None, None, None]
+        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[
+            :, None, None, None
+        ]
         Ɛ = torch.randn_like(x)
         return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * Ɛ, Ɛ
 
@@ -44,8 +58,16 @@ class Diffusion:
                     noise = torch.randn_like(x)
                 else:
                     noise = torch.zeros_like(x)
-                
-                x = 1 / torch.sqrt(alpha) * (x - ((1 - alpha) / (torch.sqrt(1 - alpha_hat))) * predicted_noise) + torch.sqrt(beta) * noise
+
+                x = (
+                    1
+                    / torch.sqrt(alpha)
+                    * (
+                        x
+                        - ((1 - alpha) / (torch.sqrt(1 - alpha_hat))) * predicted_noise
+                    )
+                    + torch.sqrt(beta) * noise
+                )
         model.train()
         x = (x.clamp(-1, 1) + 1) / 2
         x = (x * 255).type(torch.uint8)
