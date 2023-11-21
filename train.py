@@ -6,6 +6,7 @@ import data.utils as utils
 from models.pocan import POCAN
 from models.vig import VIG
 from models.foleygan import FoleyGAN
+from models.dvig import DiffusionVIG
 
 
 def train(model, train_dataloader, criterion, opt, num_epochs=10, verbose=False):
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model",
-        choices=["pocan", "foleygan", "vig"],
+        choices=["pocan", "foleygan", "vig", "dvig"],
         type=str,
         required=True,
     )
@@ -81,6 +82,7 @@ if __name__ == "__main__":
         model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft)
         loss_function = nn.HingeEmbeddingLoss()
         opt = optim.Adam(model.parameters(), lr=0.0001)
+    
     elif config.model == "pocan":
         hidden_size = 5
         num_lstm_layers = 2
@@ -95,10 +97,18 @@ if __name__ == "__main__":
         )
         loss_function = nn.CrossEntropyLoss()
         opt = optim.SGD(model.parameters(), lr=0.01)
+    
     elif config.model == "vig":
         hidden_size = 64
         num_layers = 2
         model = VIG(hidden_size, num_layers, is_grayscale=grayscale)
+        loss_function = nn.CrossEntropyLoss()
+        opt = optim.SGD(model.parameters(), lr=0.01)
+
+    elif config.model == "dvig":
+        hidden_size = 64
+        num_layers = 2
+        model = DiffusionVIG(hidden_size=hidden_size, num_lstm_layers=num_layers)
         loss_function = nn.CrossEntropyLoss()
         opt = optim.SGD(model.parameters(), lr=0.01)
 
