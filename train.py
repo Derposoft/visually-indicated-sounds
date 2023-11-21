@@ -49,7 +49,6 @@ def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=
         )
 
 
-
 def test(model, test_dataloader):
     """
     Tests the given model.
@@ -62,6 +61,7 @@ def test(model, test_dataloader):
     average_mse = total_mse / len(test_dataloader)
 
     print(f"Total MSE: [{total_mse}]; Average MSE: [{average_mse}]")
+
 
 if __name__ == "__main__":
     # Parse CLI arguments
@@ -137,8 +137,6 @@ if __name__ == "__main__":
         model = DiffusionVIG(
             hidden_size=hidden_size, num_lstm_layers=num_layers, noise_steps=noise_steps
         )
-        loss_function = nn.CrossEntropyLoss()
-        opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
     opt = optim.Adam(model.parameters(), lr=config.lr)
