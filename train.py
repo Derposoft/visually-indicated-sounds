@@ -6,6 +6,7 @@ import data.utils as utils
 from models.pocan import POCAN
 from models.vig import VIG
 from models.foleygan import FoleyGAN
+from models.dvig import DiffusionVIG
 from models.modules import calculate_audiowave_loss
 
 
@@ -33,11 +34,20 @@ def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=
 
             if verbose:
                 print(f"Current running loss: {running_loss}")
-            
+
         test(model, test_dataloader)
 
+        if isinstance(model, DiffusionVIG):
+            print("****************************************************************")
+            print(video_frames.shape)
+            print(video_frames.shape[0])
+            sampled_images = model.diffusion.sample(model, n=video_frames.shape[0])
+
         average_loss = running_loss / len(train_dataloader)
-        print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss}")
+        print(
+            f"---------------------------------Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss}"
+        )
+
 
 def test(model, test_dataloader):
     """
@@ -47,11 +57,10 @@ def test(model, test_dataloader):
     for video_frames, audio, audio_raw, labels in test_dataloader:
         outputs = model(video_frames, audio)
         total_mse += calculate_audiowave_loss(audio_raw, outputs)
-    
-    average_mse = total_mse/len(test_dataloader)
-    
-    print(f"Total MSE: [{total_mse}]; Average MSE: [{average_mse}]")
 
+    average_mse = total_mse / len(test_dataloader)
+
+    print(f"Total MSE: [{total_mse}]; Average MSE: [{average_mse}]")
 
 
 if __name__ == "__main__":
@@ -59,7 +68,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model",
-        choices=["pocan", "foleygan", "vig"],
+        choices=["pocan", "foleygan", "vig", "dvig"],
         type=str,
         required=True,
     )
@@ -119,6 +128,15 @@ if __name__ == "__main__":
         hidden_size = 64
         num_layers = 2
         model = VIG(hidden_size, num_layers, is_grayscale=grayscale)
+    elif config.model == "dvig":
+        hidden_size = 64
+        num_layers = 2
+        noise_steps = 20
+        model = DiffusionVIG(
+            hidden_size=hidden_size, num_lstm_layers=num_layers, noise_steps=noise_steps
+        )
+        loss_function = nn.CrossEntropyLoss()
+        opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
     opt = optim.Adam(model.parameters(), lr=config.lr)
