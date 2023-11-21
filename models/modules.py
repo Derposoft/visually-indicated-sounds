@@ -100,8 +100,9 @@ class VideoLSTM(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, input_size, image_height, color_channels=1):
+    def __init__(self, input_size, image_height, batch_size, color_channels=1):
         super(Discriminator, self).__init__()
+        self.batch_size = batch_size
         self.cnn = nn.Sequential(
             # input is Z, going into a convolution
             nn.ConvTranspose1d(input_size, image_height * 8, 2, 1, 0, bias=False),
@@ -127,7 +128,7 @@ class Discriminator(nn.Module):
         self.linear = nn.Linear(2, 1)
 
     def forward(self, x):
-        batch_size = x.shape[0]
+        batch_size = self.batch_size
 
         x = self.cnn(x)
         x = x.reshape(batch_size, -1)

@@ -31,7 +31,7 @@ class FoleyGAN(nn.Module):
         GAN_OUTPUT_DIM = 128
         NUM_FRAMES = 3
         self.sequence_length = int(
-            (((n_fft // 2) + 1) * (audio_sample_rate_out / NUM_FRAMES)) / batch_size
+            (((n_fft // 2) + 1) * (audio_sample_rate_out / NUM_FRAMES)) #/ batch_size
         )
         self.stft_downsample = int(
             (((n_fft // 2) + 1) * ((audio_sample_rate_out / NUM_FRAMES) - 1))
@@ -56,22 +56,26 @@ class FoleyGAN(nn.Module):
             hidden_size,
             NUM_FRAMES,
             n_fft,
+            batch_size=batch_size,
             z_dim=biggan_z_dim,
             gan_output_dim=GAN_OUTPUT_DIM,
             audio_sample_rate_out=audio_sample_rate_out,
         )
+        self.batch_size = batch_size
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
         self.stft = audiotransforms.Spectrogram(n_fft)
-        self.discriminator = modules.Discriminator(self.sequence_length, 50)
+        self.discriminator = modules.Discriminator(self.sequence_length, 50, batch_size=batch_size)
 
         # Outputs to be saved for loss calculations
         self.toggle_freeze_discriminator()
         self.discrim_loss_fn = nn.HingeEmbeddingLoss()
         self.x_pred = None
-        self.x_discrim = None
+        #self.x_discrim = None
+        self.x_discrim_real = None
+        self.x_discrim_imag = None
 
     def forward(self, x, _):
-        batch_size = x.shape[0]
+        batch_size = self.batch_size
         n_frames = x.shape[1]
 
         # Run through CNN and then pad end of sequence if it is too small for MTRN
@@ -84,13 +88,19 @@ class FoleyGAN(nn.Module):
         x_spectrogram = self.trn(x)
         noise = torch.rand(batch_size, self.biggan_z_dim)
         x = self.biggan(noise, x_class, x_spectrogram)
+        print(x.shape)
 
         # Get discriminator output
         x_real, x_imag = x.real, x.imag
-        x_discrim = torch.cat([x_real, x_imag], dim=0)
-        x_discrim = x_discrim.reshape(x_discrim.shape[0], -1)
-        x_discrim = x_discrim.unsqueeze(-1)
-        self.x_discrim = self.discriminator(x_discrim)
+        #x_discrim = torch.cat([x_real, x_imag], dim=0)
+        x_discrim_real = x_real.reshape(batch_size, -1)
+        x_discrim_real = x_discrim_real.unsqueeze(-1)
+        self.x_discrim_real = self.discriminator(x_discrim_real)
+
+        x_discrim_imag = x_imag.reshape(batch_size, -1)
+        x_discrim_imag = x_discrim_imag.unsqueeze(-1)
+        self.x_discrim_imag = self.discriminator(x_discrim_imag)
+        #self.x_discrim = self.discriminator(x_discrim)
 
         # Create audio wave via istft
         x = x.permute(0, 2, 1)
@@ -126,14 +136,16 @@ class FoleyGAN(nn.Module):
         self.toggle_freeze_discriminator()
         self.toggle_freeze_generator()
         spectrogram = self.stft(audiowaves)
-        spectrogram = spectrogram.reshape([spectrogram.shape[0], -1])
-        spectrogram = spectrogram[:, :, None].permute(2, 1, 0)
+        spectrogram = spectrogram.reshape([batch_size, -1])
+        spectrogram = spectrogram[:, :, None]#.permute(2, 1, 0)
+        spectrogram = torch.cat([spectrogram, spectrogram], dim=1)
+        
         x_discrim_pos = self.discriminator(spectrogram)
         loss_discrim_pos = self.discrim_loss_fn(
             x_discrim_pos, torch.ones((batch_size, 1))
         )
         loss_discrim_neg = self.discrim_loss_fn(
-            self.x_discrim, torch.zeros((batch_size, 1))
+            self.x_discrim_real - self.x_discrim_imag, torch.zeros((batch_size, 1))
         )
         loss_discrim = loss_discrim_pos + loss_discrim_neg
         loss_discrim.backward(retain_graph=True)

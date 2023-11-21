@@ -250,11 +250,13 @@ class BigGAN(nn.Module):
         hidden_size,
         n_frames,
         n_fft,
+        batch_size,
         z_dim=128,
         gan_output_dim=128,
         audio_sample_rate_out=90,
     ):
         super(BigGAN, self).__init__()
+        self.batch_size = batch_size
         self.gan_output_dim = gan_output_dim
         self.n_frames = n_frames
         self.audio_sample_rate_out = audio_sample_rate_out
@@ -280,11 +282,11 @@ class BigGAN(nn.Module):
         z = self.generator(cond_vector)
 
         # Our postprocessing logic for biggan
-        z = z.reshape([z.shape[0], -1])
+        z = z.reshape([self.batch_size, -1])
         z = self.linear2(z)
         z_real, z_imag = z.chunk(2, dim=-1)
         z = torch.complex(z_real, z_imag)
-        z = z.reshape([z.shape[0], self.spectrogram_len, -1])  # (bs, seq_len, dim)
+        z = z.reshape([self.batch_size, self.spectrogram_len, -1])  # (bs, seq_len, dim)
         return z
 
 
