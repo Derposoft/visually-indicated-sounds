@@ -39,6 +39,7 @@ def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=
         average_loss = running_loss / len(train_dataloader)
         print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss}")
 
+
 def test(model, test_dataloader):
     """
     Tests the given model.
@@ -51,7 +52,6 @@ def test(model, test_dataloader):
     average_mse = total_mse/len(test_dataloader)
     
     print(f"Total MSE: [{total_mse}]; Average MSE: [{average_mse}]")
-
 
 
 if __name__ == "__main__":
