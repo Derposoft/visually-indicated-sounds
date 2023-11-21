@@ -97,7 +97,7 @@ def load_video_ids():
 
 
 def match_seq_len(
-    tgt: torch.Tensor, src: torch.Tensor, verbose: bool = False
+    tgt: torch.Tensor, src: torch.Tensor, tgt_is_3d: bool = False, verbose: bool = False
 ) -> torch.Tensor:
     """
     Weird hacky function to make src and tgt match seq lens. Original POCAN
@@ -108,7 +108,10 @@ def match_seq_len(
     :param tgt: target sequence to match shape to, of size (seq_len, dim)
     :param src: source sequence to mold, of size (batch_size, seq_len', dim)
     """
-    tgt_seq_len, tgt_dim = tgt.size()
+    if not tgt_is_3d:
+        tgt_seq_len, tgt_dim = tgt.size()
+    else:
+        _, tgt_seq_len, tgt_dim = tgt.size()
     src_bs, src_seq_len, src_dim = src.size()
     ALLOWABLE_PAD_THRESHOLD = tgt_seq_len * 0.2
     pad_amount = tgt_seq_len - src_seq_len
@@ -315,7 +318,9 @@ class VideoDataset(Dataset):
     ):
         self.model = model
         self.data_dir = data_dir
-        self.video_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")][:length]
+        self.video_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")][
+            :length
+        ]
         self.transform = transform
         self.frame_skip = frame_skip
         self.annotations, self.class_map = load_annotations_and_classmap()
