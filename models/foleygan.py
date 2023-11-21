@@ -27,8 +27,8 @@ class FoleyGAN(nn.Module):
         is_grayscale: bool = True,
     ):
         super(FoleyGAN, self).__init__()
+        self.MULTI_SCALE_NUM_FRAMES = 8
         GAN_OUTPUT_DIM = 128
-        MULTI_SCALE_NUM_FRAMES = 8
         NUM_FRAMES = 3
         self.sequence_length = int(
             (((n_fft // 2) + 1) * (audio_sample_rate_out / NUM_FRAMES)) / batch_size
@@ -49,7 +49,7 @@ class FoleyGAN(nn.Module):
             img_feature_dim, num_frames=NUM_FRAMES, num_class=trn_output_dim
         )
         self.mtrn = RelationModuleMultiScale(
-            img_feature_dim, num_frames=MULTI_SCALE_NUM_FRAMES, num_class=num_class
+            img_feature_dim, num_frames=self.MULTI_SCALE_NUM_FRAMES, num_class=num_class
         )
 
         self.biggan = BigGAN(
@@ -72,8 +72,15 @@ class FoleyGAN(nn.Module):
 
     def forward(self, x, _):
         batch_size = x.shape[0]
+        n_frames = x.shape[1]
 
+        # Run through CNN and then pad end of sequence if it is too small for MTRN
         x = self.cnn(x)
+        if n_frames < self.MULTI_SCALE_NUM_FRAMES:
+            shape_before = x.shape
+            x = F.pad(x, (0, 0, 0, self.MULTI_SCALE_NUM_FRAMES - n_frames))
+            shape_after = x.shape
+            print(f"(foleygan) padding videos that are too short! padded from {shape_before} to {shape_after}")
 
         # Generate audio waveform with biggan
         x_class = self.mtrn(x)
@@ -139,3 +146,19 @@ class FoleyGAN(nn.Module):
         self.toggle_freeze_generator()
         loss_generator = 1 - loss_discrim
         return loss_generator
+
+
+if __name__ == "__main__":
+    num_classes = 15
+    batch_size = 10
+    img_feature_dim = 64
+    hidden_size = 20
+    n_fft = 400
+    model = FoleyGAN(img_feature_dim, num_classes, hidden_size, batch_size, n_fft)
+    
+    n_frames = 5
+    width = 300
+    height = 240
+    x = torch.rand(batch_size, n_frames, width, height, 1)
+    y = model(x)
+    print(y.shape)

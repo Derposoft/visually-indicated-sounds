@@ -181,7 +181,7 @@ def get_audio_features_by_video_id(
 
     # Perform special audio feature extraction by model
     if model == "pocan":
-        return waveform
+        return torch.Tensor(1), waveform
 
     # Apply filter, compute envelope. Here we choose mel filterbank
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
