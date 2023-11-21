@@ -77,10 +77,7 @@ class FoleyGAN(nn.Module):
         # Run through CNN and then pad end of sequence if it is too small for MTRN
         x = self.cnn(x)
         if n_frames < self.MULTI_SCALE_NUM_FRAMES:
-            shape_before = x.shape
             x = F.pad(x, (0, 0, 0, self.MULTI_SCALE_NUM_FRAMES - n_frames))
-            shape_after = x.shape
-            print(f"(foleygan) padding videos that are too short! padded from {shape_before} to {shape_after}")
 
         # Generate audio waveform with biggan
         x_class = self.mtrn(x)
@@ -149,16 +146,18 @@ class FoleyGAN(nn.Module):
 
 
 if __name__ == "__main__":
+    print("Running foleygan tests....")
     num_classes = 15
-    batch_size = 10
-    img_feature_dim = 64
-    hidden_size = 20
+    batch_size = 1
+    img_feature_dim = 5
+    hidden_size = 5
     n_fft = 400
     model = FoleyGAN(img_feature_dim, num_classes, hidden_size, batch_size, n_fft)
-    
+    print("Model initialized")
+
     n_frames = 5
     width = 300
     height = 240
-    x = torch.rand(batch_size, n_frames, width, height, 1)
-    y = model(x)
+    x = torch.rand(batch_size, n_frames, width, height)
+    y = model(x, None)
     print(y.shape)
