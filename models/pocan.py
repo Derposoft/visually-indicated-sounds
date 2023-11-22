@@ -22,6 +22,7 @@ class POCAN(nn.Module):
         use_resnet: bool = False,
         hidden_size: int = 20,
         num_lstm_layers: int = 2,
+        device: str = "cpu",
     ):
         super(POCAN, self).__init__()
         cnn_output_dim = 2048 if use_resnet else 4096
@@ -46,6 +47,8 @@ class POCAN(nn.Module):
         # Ensure that "Default sound class" spectrograms are saved for future use
         # via this map from class -> spectrogram tensor
         self.default_spectrograms = create_default_spectrograms(n_fft=n_fft)
+        for k in self.default_spectrograms:
+            self.default_spectrograms[k] = self.default_spectrograms[k].to(device)
 
     def forward(self, x, _):
         """

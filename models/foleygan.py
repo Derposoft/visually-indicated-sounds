@@ -24,11 +24,13 @@ class FoleyGAN(nn.Module):
         n_fft: int = 400,
         audio_sample_rate_out: int = 90,
         is_grayscale: bool = True,
+        device: str = "cuda",
     ):
         super(FoleyGAN, self).__init__()
         self.MULTI_SCALE_NUM_FRAMES = 8
         GAN_OUTPUT_DIM = 128
         NUM_FRAMES = 3
+        self.device = device
         self.sequence_length = int(
             (((n_fft // 2) + 1) * (audio_sample_rate_out / NUM_FRAMES)) #/ batch_size
         )
@@ -82,7 +84,7 @@ class FoleyGAN(nn.Module):
         # Generate audio waveform with biggan
         x_class = self.mtrn(x)
         x_spectrogram = self.trn(x)
-        noise = torch.rand(batch_size, self.biggan_z_dim)
+        noise = torch.rand(batch_size, self.biggan_z_dim).to(self.device)
         x = self.biggan(noise, x_class, x_spectrogram)
 
         # Get discriminator output
@@ -136,10 +138,12 @@ class FoleyGAN(nn.Module):
         
         x_discrim_pos = self.discriminator(spectrogram)
         loss_discrim_pos = self.discrim_loss_fn(
-            x_discrim_pos, torch.ones((batch_size, 1))
+            x_discrim_pos,
+            torch.ones((batch_size, 1)).to(self.device),
         )
         loss_discrim_neg = self.discrim_loss_fn(
-            self.x_discrim_real - self.x_discrim_imag, torch.zeros((batch_size, 1))
+            self.x_discrim_real - self.x_discrim_imag,
+            torch.zeros((batch_size, 1)).to(self.device),
         )
         loss_discrim = loss_discrim_pos + loss_discrim_neg
         loss_discrim.backward(retain_graph=True)

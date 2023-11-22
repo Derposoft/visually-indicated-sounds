@@ -49,7 +49,7 @@ class DiffusionVIG(nn.Module):
         :param _: unused audio waveforms
         """
         t = self.diffusion.sample_timesteps(x.shape[0])
-        x, noise = self.diffusion.noise_images(x, t)  # TODO: MAKE NOISE_VIDEOS
+        x, _ = self.diffusion.noise_images(x, t)  # TODO: MAKE NOISE_VIDEOS
 
         # Fetch final hidden state after running video through cnn+lstm
         x = self.cnn(x)
@@ -65,7 +65,6 @@ class DiffusionVIG(nn.Module):
 
     def synthesize_audiowave(self, spectrogram: torch.Tensor):
         # spectrogram shape: (batch_size, seq_len, dim)
-        print(spectrogram.shape)
         spectrogram = spectrogram.permute(0, 2, 1)
         return self.istft(spectrogram)
 
