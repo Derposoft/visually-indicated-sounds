@@ -88,7 +88,7 @@ class POCAN(nn.Module):
 
         # Classification loss
         loss_cls = -torch.sum(
-            torch.log(self.c_hat_dist[range(len(self.c_hat_dist)), c])
+            torch.log(self.c_hat_dist[range(len(self.c_hat_dist)), c - 1])
         )
 
         # Regression loss

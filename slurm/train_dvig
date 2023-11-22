@@ -17,4 +17,4 @@ module load ffmpeg/5.0.1
 source ~/.bashrc
 conda activate csci677
 cd ~/csci677
-python3 train.py --model dvig --n_train 500 --n_test 100 --epochs 100 > ~/csci677/slurm/output.train_dvig 2> ~/csci677/slurm/err.train_dvig
+python3 train.py --model dvig --batch_size 16 --n_train 500 --n_test 100 --epochs 100 > ~/csci677/slurm/output.train_dvig 2> ~/csci677/slurm/err.train_dvig
