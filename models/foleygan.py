@@ -136,9 +136,11 @@ class FoleyGAN(nn.Module):
         self.toggle_freeze_discriminator()
         self.toggle_freeze_generator()
         spectrogram = self.stft(audiowaves)
-        spectrogram = spectrogram.reshape([batch_size, -1])
+        spectrogram = spectrogram.reshape([spectrogram.shape[0], -1])
         spectrogram = spectrogram[:, :, None]#.permute(2, 1, 0)
-        spectrogram = torch.cat([spectrogram, spectrogram], dim=1)
+        if batch_size != 1:
+            spectrogram = torch.cat([spectrogram, spectrogram], dim=0)
+        print(spectrogram.shape)
         
         x_discrim_pos = self.discriminator(spectrogram)
         loss_discrim_pos = self.discrim_loss_fn(
