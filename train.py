@@ -110,10 +110,16 @@ if __name__ == "__main__":
 
     # Create models
     if config.model == "foleygan":
-        img_feature_dim = 64
-        hidden_size = 20
+        img_feature_dim = 5
+        hidden_size = 5
         n_fft = 400
-        model = FoleyGAN(img_feature_dim, num_classes, hidden_size, batch_size, n_fft)
+        model = FoleyGAN(
+            img_feature_dim, 
+            num_classes, 
+            hidden_size, 
+            n_fft=n_fft, 
+            is_grayscale=grayscale,
+        )
     elif config.model == "pocan":
         hidden_size = 5
         num_lstm_layers = 2

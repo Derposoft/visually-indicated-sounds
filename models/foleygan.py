@@ -20,7 +20,6 @@ class FoleyGAN(nn.Module):
         img_feature_dim,
         num_class,
         hidden_size,
-        batch_size,
         biggan_z_dim: int = 128,
         n_fft: int = 400,
         audio_sample_rate_out: int = 90,
@@ -35,7 +34,6 @@ class FoleyGAN(nn.Module):
         )
         self.stft_downsample = int(
             (((n_fft // 2) + 1) * ((audio_sample_rate_out / NUM_FRAMES) - 1))
-            / batch_size
         )
         self.n_fft = n_fft
         self.biggan_z_dim = biggan_z_dim
@@ -56,15 +54,13 @@ class FoleyGAN(nn.Module):
             hidden_size,
             NUM_FRAMES,
             n_fft,
-            batch_size=batch_size,
             z_dim=biggan_z_dim,
             gan_output_dim=GAN_OUTPUT_DIM,
             audio_sample_rate_out=audio_sample_rate_out,
         )
-        self.batch_size = batch_size
         self.istft = audiotransforms.InverseSpectrogram(n_fft)
         self.stft = audiotransforms.Spectrogram(n_fft)
-        self.discriminator = modules.Discriminator(self.sequence_length, 50, batch_size=batch_size)
+        self.discriminator = modules.Discriminator(self.sequence_length, 50)
 
         # Outputs to be saved for loss calculations
         self.toggle_freeze_discriminator()
@@ -75,7 +71,7 @@ class FoleyGAN(nn.Module):
         self.x_discrim_imag = None
 
     def forward(self, x, _):
-        batch_size = self.batch_size
+        batch_size = x.shape[0]
         n_frames = x.shape[1]
 
         # Run through CNN and then pad end of sequence if it is too small for MTRN
@@ -88,7 +84,6 @@ class FoleyGAN(nn.Module):
         x_spectrogram = self.trn(x)
         noise = torch.rand(batch_size, self.biggan_z_dim)
         x = self.biggan(noise, x_class, x_spectrogram)
-        print(x.shape)
 
         # Get discriminator output
         x_real, x_imag = x.real, x.imag
@@ -138,9 +133,6 @@ class FoleyGAN(nn.Module):
         spectrogram = self.stft(audiowaves)
         spectrogram = spectrogram.reshape([spectrogram.shape[0], -1])
         spectrogram = spectrogram[:, :, None]#.permute(2, 1, 0)
-        if batch_size != 1:
-            spectrogram = torch.cat([spectrogram, spectrogram], dim=0)
-        print(spectrogram.shape)
         
         x_discrim_pos = self.discriminator(spectrogram)
         loss_discrim_pos = self.discrim_loss_fn(
@@ -162,13 +154,22 @@ class FoleyGAN(nn.Module):
 if __name__ == "__main__":
     print("Running foleygan tests....")
     num_classes = 15
-    batch_size = 1
     img_feature_dim = 5
     hidden_size = 5
     n_fft = 400
-    model = FoleyGAN(img_feature_dim, num_classes, hidden_size, batch_size, n_fft)
-    print("Model initialized")
+    model = FoleyGAN(img_feature_dim, num_classes, hidden_size, n_fft=n_fft)
 
+    print("Test n_frames < MULTI_SCALE_NUM_FRAMES")
+    batch_size = 1
+    n_frames = 5
+    width = 300
+    height = 240
+    x = torch.rand(batch_size, n_frames, width, height)
+    y = model(x, None)
+    print(y.shape)
+
+    print("Test batch size > 1")
+    batch_size = 5
     n_frames = 5
     width = 300
     height = 240
