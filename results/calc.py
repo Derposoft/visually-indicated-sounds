@@ -44,7 +44,7 @@ for file_name in files_starting_with_output:
     test_mse_values.sort()
 
     top_n_test_mse = test_mse_values[:N_TOP]
-    print(top_n_test_mse)
+    # print(top_n_test_mse)
 
     # Calculate mean and standard deviation
     mean = np.mean(top_n_test_mse)
@@ -60,5 +60,6 @@ for file_name in files_starting_with_output:
     # Output the results
     print(f"Mean: {mean}")
     print(f"Standard Deviation: {std_dev}")
+    print(f"CI: {mean} $\pm$ {Z_SCORE * std_dev}")
 
     print("--------------------------")
