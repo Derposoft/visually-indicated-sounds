@@ -3,7 +3,7 @@ from scipy.stats import ttest_ind
 import glob
 
 N_TOP = 10
-Z_SCORE = 1.68
+Z_SCORE = 1.645
 VIG_BASELINES = [
     0.13182008266448975,
     0.13182008266448975,
@@ -51,15 +51,15 @@ for file_name in files_starting_with_output:
     std_dev = np.std(top_n_test_mse, ddof=1)
 
     # Perform two-sample t-test
-    t_statistic, p_value = ttest_ind(VIG_BASELINES, top_n_test_mse, alternative="less")
+    t_statistic, p_value = ttest_ind(top_n_test_mse, VIG_BASELINES, alternative="less")
 
     # Output the results
     print(f"T-Statistic: {t_statistic}")
-    print(f"P-Value: {p_value}")
+    print(f"P-Value: {p_value:0.5f}")
 
     # Output the results
     print(f"Mean: {mean}")
-    print(f"Standard Deviation: {std_dev}")
-    print(f"CI: {mean} $\pm$ {Z_SCORE * std_dev}")
+    print(f"Standard Deviation: {std_dev:0.5f}")
+    print(f"CI: {mean:0.5f} $\pm$ {Z_SCORE * std_dev:0.5f}")
 
     print("--------------------------")
