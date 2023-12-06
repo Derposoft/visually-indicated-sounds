@@ -1,6 +1,8 @@
 import argparse
-import torch.nn as nn
+from time import time
+import torch
 import torch.optim as optim
+from torch.autograd import profiler
 
 import data.utils as utils
 from models.pocan import POCAN
@@ -10,7 +12,7 @@ from models.dvig import DiffusionVIG
 from models.modules import calculate_audiowave_loss
 
 
-def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=False):
+def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=False, device="cpu"):
     """
     Trains the given model. Assumes that model is an nn.Module class, with a function
     defined inside of it called "loss". Loss functions in models must look like:
@@ -20,10 +22,21 @@ def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=
     where outputs are model outputs, labels are sound class labels, and audio is the raw
     audio for each video.
     """
+    model = model.to(device)
     for epoch in range(num_epochs):
+        # Train model
         running_loss = 0.0
+        epoch_start = time()
         for video_frames, audio, audio_raw, labels in train_dataloader:
             opt.zero_grad()
+
+            # Get model predictions
+            video_frames = video_frames.to(device)
+            audio = audio.to(device)
+            audio_raw = audio_raw.to(device)
+            labels = labels.to(device)
+            #with profiler.profile(record_shapes=True, use_cuda=True) as prof:
+            #    with torch.autograd.profiler.record_function("model_inference"):
             outputs = model(video_frames, audio)
 
             # Custom losses by model
@@ -31,36 +44,43 @@ def train(model, train_dataloader, test_dataloader, opt, num_epochs=10, verbose=
             loss.backward()
             opt.step()
             running_loss += loss.item()
+            del video_frames, audio, audio_raw, labels, outputs, loss
 
+            # Debug prints
             if verbose:
-                print(f"Current running loss: {running_loss}")
-
-        test(model, test_dataloader)
-
-        if isinstance(model, DiffusionVIG):
-            print("****************************************************************")
-            print(video_frames.shape)
-            print(video_frames.shape[0])
-            sampled_images = model.diffusion.sample(model, n=video_frames.shape[0])
+                mem_alloced_gb = torch.cuda.memory_allocated()/(1000**3)
+                mem_total_gb = torch.cuda.max_memory_allocated()/(1000**3)
+                print(f"(verbose) mem alloc: {100*mem_alloced_gb/mem_total_gb:0.2f}% ({mem_alloced_gb:0.3f} GB -- mem max: {mem_total_gb:0.3f} GB)")
+                print(f"(verbose) running loss: {running_loss}")
+                # if mem_total_gb > 20:
+                #     torch.cuda.empty_cache()
+                #     print(f"(verbose) cleaning up cuda cache")
+                #print("(verbose)", prof.key_averages().table(sort_by="cuda_memory_usage", row_limit=10))
 
         average_loss = running_loss / len(train_dataloader)
-        print(
-            f"---------------------------------Epoch [{epoch+1}/{num_epochs}] Loss: {average_loss}"
-        )
+        print(f"Epoch [{epoch+1}/{num_epochs}] {time() - epoch_start} Loss: {average_loss}")
+
+        # Test model and output test metrics
+        with torch.no_grad():
+            test(model, test_dataloader, device=device)
 
 
-def test(model, test_dataloader):
+
+def test(model, test_dataloader, device="cpu"):
     """
     Tests the given model.
     """
+    model = model.to(device)
     total_mse = 0
     for video_frames, audio, audio_raw, labels in test_dataloader:
+        video_frames = video_frames.to(device)
+        audio = audio.to(device)
+        audio_raw = audio_raw.to(device)
+        labels = labels.to(device)
         outputs = model(video_frames, audio)
         total_mse += calculate_audiowave_loss(audio_raw, outputs)
-
     average_mse = total_mse / len(test_dataloader)
-
-    print(f"Total MSE: [{total_mse}]; Average MSE: [{average_mse}]")
+    print(f"Test MSE: [{total_mse}]; Average MSE: [{average_mse}]")
 
 
 if __name__ == "__main__":
@@ -92,6 +112,7 @@ if __name__ == "__main__":
     grayscale = not config.no_grayscale
     verbose = config.verbose
     epochs = config.epochs
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Download data and get dataloaders
     utils.download_data_if_not_downloaded(n_train_videos=n_train, n_test_videos=n_test)
@@ -102,16 +123,25 @@ if __name__ == "__main__":
         vid_width=vid_width,
         frame_skip=frame_skip,
         grayscale=grayscale,
+        n_train_videos=n_train,
+        n_test_videos=n_test,
     )
     annotations, class_map = utils.load_annotations_and_classmap()
     num_classes = len(class_map)
 
     # Create models
     if config.model == "foleygan":
-        img_feature_dim = 64
-        hidden_size = 20
+        img_feature_dim = 5
+        hidden_size = 5
         n_fft = 400
-        model = FoleyGAN(img_feature_dim, num_classes, hidden_size, batch_size, n_fft)
+        model = FoleyGAN(
+            img_feature_dim, 
+            num_classes, 
+            hidden_size, 
+            n_fft=n_fft, 
+            is_grayscale=grayscale,
+            device=device,
+        )
     elif config.model == "pocan":
         hidden_size = 5
         num_lstm_layers = 2
@@ -123,6 +153,7 @@ if __name__ == "__main__":
             use_resnet=False,
             hidden_size=hidden_size,
             num_lstm_layers=num_lstm_layers,
+            device=device,
         )
     elif config.model == "vig":
         hidden_size = 64
@@ -131,12 +162,13 @@ if __name__ == "__main__":
     elif config.model == "dvig":
         hidden_size = 64
         num_layers = 2
-        noise_steps = 20
+        noise_steps = 5
         model = DiffusionVIG(
-            hidden_size=hidden_size, num_lstm_layers=num_layers, noise_steps=noise_steps
+            hidden_size=hidden_size,
+            num_lstm_layers=num_layers,
+            noise_steps=noise_steps,
+            device=device,
         )
-        loss_function = nn.CrossEntropyLoss()
-        opt = optim.SGD(model.parameters(), lr=0.01)
 
     assert model != None
     opt = optim.Adam(model.parameters(), lr=config.lr)
@@ -149,4 +181,5 @@ if __name__ == "__main__":
         opt,
         num_epochs=epochs,
         verbose=verbose,
+        device=device,
     )

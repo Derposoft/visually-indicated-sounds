@@ -22,6 +22,7 @@ class POCAN(nn.Module):
         use_resnet: bool = False,
         hidden_size: int = 20,
         num_lstm_layers: int = 2,
+        device: str = "cpu",
     ):
         super(POCAN, self).__init__()
         cnn_output_dim = 2048 if use_resnet else 4096
@@ -46,6 +47,8 @@ class POCAN(nn.Module):
         # Ensure that "Default sound class" spectrograms are saved for future use
         # via this map from class -> spectrogram tensor
         self.default_spectrograms = create_default_spectrograms(n_fft=n_fft)
+        for k in self.default_spectrograms:
+            self.default_spectrograms[k] = self.default_spectrograms[k].to(device)
 
     def forward(self, x, _):
         """
@@ -64,9 +67,10 @@ class POCAN(nn.Module):
         return self.audiowave(spectrogram)
 
     def synthesize_spectrogram(self):
-        c_hat = torch.argmax(self.c_hat_dist, dim=-1).item()
-        s_base = self.default_spectrograms[c_hat]
-        s_additive = match_seq_len(s_base, self.s_additive)
+        c_hat = torch.argmax(self.c_hat_dist, dim=-1)
+        s_base = [self.default_spectrograms[_c_hat.item()] for _c_hat in c_hat]
+        s_base = torch.nn.utils.rnn.pad_sequence(s_base, batch_first=True)
+        s_additive = match_seq_len(s_base, self.s_additive, tgt_is_3d=True)
         self.s_hat = s_base + s_additive
         return self.s_hat
 
@@ -86,11 +90,13 @@ class POCAN(nn.Module):
             raise ValueError("Forward must be called first before calling loss!")
 
         # Classification loss
-        loss_cls = -torch.log(self.c_hat_dist[range(len(self.c_hat_dist)), c])
+        loss_cls = -torch.sum(
+            torch.log(self.c_hat_dist[range(len(self.c_hat_dist)), c - 1])
+        )
 
         # Regression loss
         s = self.spectrogram(y).permute(0, 2, 1)  # (batch, seq, dim)
-        sp = match_seq_len(s[0], self.s_hat)
+        sp = match_seq_len(s, self.s_hat, tgt_is_3d=True)
         s_mag, sp_mag = torch.abs(s), torch.abs(sp)  # hack? not sure what paper did
         loss_reg = self.smooth_l1_loss(s_mag, sp_mag)
         loss_reg = torch.abs(loss_reg)  # do i even need this?

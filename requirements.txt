@@ -1,6 +1,9 @@
+gdown
+matplotlib
 numpy
-opencv-python
+opencv-python-headless
 pytube
+scipy
 torch
 torchvision
 torchaudio

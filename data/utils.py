@@ -97,7 +97,7 @@ def load_video_ids():
 
 
 def match_seq_len(
-    tgt: torch.Tensor, src: torch.Tensor, verbose: bool = False
+    tgt: torch.Tensor, src: torch.Tensor, tgt_is_3d: bool = False, verbose: bool = False
 ) -> torch.Tensor:
     """
     Weird hacky function to make src and tgt match seq lens. Original POCAN
@@ -108,7 +108,10 @@ def match_seq_len(
     :param tgt: target sequence to match shape to, of size (seq_len, dim)
     :param src: source sequence to mold, of size (batch_size, seq_len', dim)
     """
-    tgt_seq_len, tgt_dim = tgt.size()
+    if not tgt_is_3d:
+        tgt_seq_len, tgt_dim = tgt.size()
+    else:
+        _, tgt_seq_len, tgt_dim = tgt.size()
     src_bs, src_seq_len, src_dim = src.size()
     ALLOWABLE_PAD_THRESHOLD = tgt_seq_len * 0.2
     pad_amount = tgt_seq_len - src_seq_len
@@ -181,7 +184,7 @@ def get_audio_features_by_video_id(
 
     # Perform special audio feature extraction by model
     if model == "pocan":
-        return waveform
+        return torch.Tensor(1), waveform
 
     # Apply filter, compute envelope. Here we choose mel filterbank
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
@@ -311,10 +314,13 @@ class VideoDataset(Dataset):
         data_dir: str = os.path.join(os.path.dirname(__file__), "./vig"),
         transform: bool = None,
         frame_skip: int = 10,
+        length: int = 10,
     ):
         self.model = model
         self.data_dir = data_dir
-        self.video_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")]
+        self.video_files = [f for f in os.listdir(data_dir) if f.endswith(".mp4")][
+            :length
+        ]
         self.transform = transform
         self.frame_skip = frame_skip
         self.annotations, self.class_map = load_annotations_and_classmap()
@@ -411,6 +417,8 @@ def load_data(
     vid_width=360,
     frame_skip=10,
     grayscale=True,
+    n_train_videos=10,
+    n_test_videos=5,
 ) -> tuple[DataLoader, DataLoader]:
     train_dir = os.path.join(os.path.dirname(__file__), "./vig_train")
     test_dir = os.path.join(os.path.dirname(__file__), "./vig_test")
@@ -421,6 +429,7 @@ def load_data(
             height=vid_height, width=vid_width, grayscale=grayscale
         ),
         frame_skip=frame_skip,
+        length=n_train_videos,
     )
     test_dataset = VideoDataset(
         model,
@@ -429,6 +438,7 @@ def load_data(
             height=vid_height, width=vid_width, grayscale=grayscale
         ),
         frame_skip=frame_skip,
+        length=n_test_videos,
     )
     train_dataloader = DataLoader(
         train_dataset,

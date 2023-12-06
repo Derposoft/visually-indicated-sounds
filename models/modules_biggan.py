@@ -270,7 +270,8 @@ class BigGAN(nn.Module):
         )
 
     def forward(self, z, class_label, spectrogram):
-        # Our preprocessing logic for biggan=
+        # Our preprocessing logic for biggan
+        batch_size = z.shape[0]
         spectrogram = spectrogram.reshape([spectrogram.shape[0], -1])
         embed = self.embeddings(class_label)
         spectrogram = self.linear(spectrogram)
@@ -280,11 +281,11 @@ class BigGAN(nn.Module):
         z = self.generator(cond_vector)
 
         # Our postprocessing logic for biggan
-        z = z.reshape([z.shape[0], -1])
+        z = z.reshape([batch_size, -1])
         z = self.linear2(z)
         z_real, z_imag = z.chunk(2, dim=-1)
         z = torch.complex(z_real, z_imag)
-        z = z.reshape([z.shape[0], self.spectrogram_len, -1])  # (bs, seq_len, dim)
+        z = z.reshape([batch_size, self.spectrogram_len, -1])  # (bs, seq_len, dim)
         return z
 
 

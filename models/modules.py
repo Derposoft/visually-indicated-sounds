@@ -128,7 +128,6 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         batch_size = x.shape[0]
-
         x = self.cnn(x)
         x = x.reshape(batch_size, -1)
         x = self.linear(x)

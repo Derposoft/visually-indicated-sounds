@@ -37,8 +37,8 @@ class Diffusion:
         sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[
             :, None, None, None
         ]
-        Ɛ = torch.randn_like(x)
-        return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * Ɛ, Ɛ
+        eps = torch.randn_like(x)
+        return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * eps, eps
 
     def sample_timesteps(self, n):
         return torch.randint(low=1, high=self.noise_steps, size=(n,))

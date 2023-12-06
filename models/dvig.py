@@ -8,6 +8,7 @@ import torch.nn as nn
 import torchaudio.transforms as audiotransforms
 
 import models.modules as modules
+from models.modules import calculate_audiowave_loss
 from models.modules_diffusion import Diffusion
 
 
@@ -26,16 +27,13 @@ class DiffusionVIG(nn.Module):
         super(DiffusionVIG, self).__init__()
         if n_fft % 2 == 1:
             n_fft += 1
-        lstm_hidden_size = int(n_fft / 2) + 1
-        lstm_output_size = 2 * lstm_hidden_size  # x2 since we fold it as complex tensor
-        diffusion_size = 2 * int(n_fft / 2)
+        lstm_output_size = 2 * (n_fft // 2 + 1)  # x2 since we fold it as complex tensor
+        diffusion_size = 2 * (n_fft // 2)
 
         self.cnn = modules.VideoCNN(
             hidden_size, use_resnet=use_resnet, is_grayscale=is_grayscale
         )
-        self.lstm = modules.VideoLSTM(
-            lstm_hidden_size, lstm_output_size, num_lstm_layers
-        )
+        self.lstm = modules.VideoLSTM(hidden_size, lstm_output_size, num_lstm_layers)
 
         self.diffusion = Diffusion(
             img_size=diffusion_size, noise_steps=noise_steps, device=device
@@ -43,6 +41,7 @@ class DiffusionVIG(nn.Module):
 
         self.istft = audiotransforms.InverseSpectrogram(n_fft=n_fft)
         self.num_timesteps = num_diffusion_timesteps
+        self.loss_function = nn.CrossEntropyLoss()
 
     def forward(self, x, _):
         """
@@ -50,7 +49,7 @@ class DiffusionVIG(nn.Module):
         :param _: unused audio waveforms
         """
         t = self.diffusion.sample_timesteps(x.shape[0])
-        x, noise = self.diffusion.noise_images(x, t)  # TODO: MAKE NOISE_VIDEOS
+        x, _ = self.diffusion.noise_images(x, t)  # TODO: MAKE NOISE_VIDEOS
 
         # Fetch final hidden state after running video through cnn+lstm
         x = self.cnn(x)
@@ -66,9 +65,11 @@ class DiffusionVIG(nn.Module):
 
     def synthesize_audiowave(self, spectrogram: torch.Tensor):
         # spectrogram shape: (batch_size, seq_len, dim)
-        print(spectrogram.shape)
         spectrogram = spectrogram.permute(0, 2, 1)
         return self.istft(spectrogram)
+
+    def loss(self, outputs, _, audiowaves):
+        return calculate_audiowave_loss(audiowaves, outputs)
 
 
 if __name__ == "__main__":
