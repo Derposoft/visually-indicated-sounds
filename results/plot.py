@@ -2,6 +2,14 @@ import re
 import matplotlib.pyplot as plt
 
 
+file_paths = {
+    "VIG": "./output.train_vig_10bs",
+    "D-VIG": "./output.train_dvig_1bs",
+    "FoleyGAN": "./output.train_foleygan_1bs",
+    "POCAN": "./output.train_pocan",
+}
+
+
 def parse_file(file_paths):
     data = {}
 
@@ -34,7 +42,7 @@ def plot_mse(data, label="Train MSE"):
         d = test
         print(d[:5])
         axs[i % 2, i // 2].plot(d, label=model)
-        # axs[i % 2, i // 2].title = model
+        axs[i % 2, i // 2].set_title(model)
 
         # plt.subplot(d, label=model)
     # plt.xlabel("Epoch")
@@ -45,12 +53,6 @@ def plot_mse(data, label="Train MSE"):
 
 
 if __name__ == "__main__":
-    file_paths = {
-        "vig": "./output.train_vig_10bs",
-        "dvig": "./output.train_dvig_1bs",
-        "foleygan": "./output.train_foleygan_1bs",
-        "pocan": "./output.train_pocan",
-    }
     data = parse_file(file_paths)
     plot_mse(data, "Train MSE")
     # plot_mse(test_mse, "Test MSE")
