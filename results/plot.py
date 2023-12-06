@@ -2,37 +2,55 @@ import re
 import matplotlib.pyplot as plt
 
 
-def parse_file(file_path):
-    train_mse = []
-    test_mse = []
+def parse_file(file_paths):
+    data = {}
 
-    with open(file_path, "r") as file:
-        lines = file.readlines()
-    print(lines[0])
+    for model in file_paths:
+        file_path = file_paths[model]
+        train_mse = []
+        test_mse = []
 
-    for line in lines:
-        train_match = "Epoch" in line
-        if train_match:
-            train_mse.append(float(line.split(":")[-1]))
+        with open(file_path, "r") as file:
+            lines = file.readlines()
 
-        test_match = "Test MSE:" in line
-        if test_match:
-            test_mse.append(float(line.split("[")[1].split("]")[0]))
+        for line in lines:
+            train_match = "Epoch" in line
+            if train_match:
+                train_mse.append(float(line.split(":")[-1]))
 
-    return train_mse, test_mse
+            test_match = "Test MSE:" in line
+            if test_match:
+                test_mse.append(float(line.split("[")[-1].split("]")[0]))
+
+        data[model] = (train_mse, test_mse)
+
+    return data
 
 
-def plot_mse(mse, label="Train MSE"):
-    plt.plot(mse, label=label)
-    plt.xlabel("Epoch")
-    plt.ylabel("MSE")
-    plt.title("")
+def plot_mse(data, label="Train MSE"):
+    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+    for i, model in enumerate(data):
+        train, test = data[model]
+        d = test
+        print(d[:5])
+        axs[i % 2, i // 2].plot(d, label=model)
+        # axs[i % 2, i // 2].title = model
+
+        # plt.subplot(d, label=model)
+    # plt.xlabel("Epoch")
+    # plt.ylabel("MSE")
+    # plt.title("")
     # plt.legend()
     plt.show()
 
 
 if __name__ == "__main__":
-    file_path = "./output.train_dvig_1bs"
-    train_mse, test_mse = parse_file(file_path)
-    plot_mse(train_mse, "Train MSE")
-    plot_mse(test_mse, "Test MSE")
+    file_paths = {
+        "vig": "./output.train_vig_10bs",
+        "dvig": "./output.train_dvig_1bs",
+        "foleygan": "./output.train_foleygan_1bs",
+        "pocan": "./output.train_pocan",
+    }
+    data = parse_file(file_paths)
+    plot_mse(data, "Train MSE")
+    # plot_mse(test_mse, "Test MSE")
